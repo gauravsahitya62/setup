@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: flowset-postgres
+    environment:
+      POSTGRES_DB: flowset
+      POSTGRES_USER: flowset
+      POSTGRES_PASSWORD: flowset
+    ports:
+      - "5432:5432"
+    volumes:
+      - flowset_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowset -d flowset"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: flowset-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/flowset
+      DATABASE_USERNAME: flowset
+      DATABASE_PASSWORD: flowset
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-me-access-secret-min-32-chars-long!!}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-secret-min-32-chars-long!}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+
+volumes:
+  flowset_pg_data:

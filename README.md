@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FlowSet
 
-## Getting Started
+B2B marketplace and operating system for the event industry.
 
-First, run the development server:
+Event planners discover, compare, and request bookings from verified rental vendors.
+
+## Stack
+
+- **Frontend:** Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, shadcn/ui
+- **State / data:** Zustand, TanStack Query, React Hook Form, Zod, Axios
+- **Backend:** Java 21, Spring Boot 3.5, Spring Security, JPA, Flyway, PostgreSQL, JWT
+- **Docs:** `/docs`
+
+## Getting started
+
+### 1. Environment
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Database + API (Docker)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+docker compose up -d postgres
+cd backend
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- API: http://localhost:8080
+- Swagger: http://localhost:8080/swagger-ui.html
 
-## Learn More
+Or run the full stack:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+docker compose up --build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3. Frontend
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm install
+npm run dev
+```
 
-## Deploy on Vercel
+Open [http://localhost:3000](http://localhost:3000).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Auth pages: `/sign-in`, `/sign-up`, `/forgot-password`, `/reset-password`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start Turbopack dev server |
+| `npm run build` | Production build |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript check |
+| `cd backend && mvn test` | Backend unit + integration tests |
+
+## Structure
+
+```
+app/                 # App Router
+backend/             # Spring Boot modular monolith
+components/
+docs/                # Product + architecture docs
+providers/           # Theme, Query, Auth
+services/            # Axios API client + auth API
+```
+
+## Auth
+
+See [docs/06-authentication.md](docs/06-authentication.md).
