@@ -48,3 +48,5 @@ next-env.d.ts
 # backend
 backend/target/
 backend/.mvn/wrapper/maven-wrapper.jar
+backend/uploads/
+backend/uploads-test/

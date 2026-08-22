@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Menu, Shield } from "lucide-react";
+import { Menu, Shield } from "lucide-react";
 
+import { NotificationCenter } from "@/components/notifications/notification-center";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SearchBar } from "@/components/shared/search-bar";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { ADMIN_OPERATOR } from "@/constants/admin";
 import { ROUTES } from "@/constants";
 import { useAuth } from "@/providers";
 import { useUIStore } from "@/store";
@@ -28,8 +27,8 @@ interface AdminNavbarProps {
 
 export function AdminNavbar({ className }: AdminNavbarProps) {
   const { setSidebarOpen } = useUIStore();
-  const { logout } = useAuth();
-  const initials = `${ADMIN_OPERATOR.firstName.charAt(0)}${ADMIN_OPERATOR.lastName.charAt(0)}`;
+  const { logout, user } = useAuth();
+  const initials = `${(user?.firstName ?? "A").charAt(0)}${(user?.lastName ?? "D").charAt(0)}`;
 
   return (
     <header
@@ -59,17 +58,7 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
         </div>
 
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative rounded-xl"
-            aria-label="Notifications"
-          >
-            <Bell className="size-4" />
-            <Badge className="absolute -top-1 -right-1 h-5 min-w-5 justify-center rounded-md px-1 text-[10px]">
-              5
-            </Badge>
-          </Button>
+          <NotificationCenter />
 
           <ThemeToggle />
 
@@ -80,7 +69,7 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
                 <span className="hidden text-sm font-medium lg:inline">
-                  {ADMIN_OPERATOR.firstName}
+                  {user?.firstName ?? "Admin"}
                 </span>
               </Button>
             </DropdownMenuTrigger>
@@ -88,11 +77,9 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
               <DropdownMenuLabel>
                 <div className="flex flex-col gap-0.5">
                   <span>
-                    {ADMIN_OPERATOR.firstName} {ADMIN_OPERATOR.lastName}
+                    {user?.firstName} {user?.lastName}
                   </span>
-                  <span className="text-muted-foreground text-xs font-normal">
-                    {ADMIN_OPERATOR.title}
-                  </span>
+                  <span className="text-muted-foreground text-xs font-normal">Administrator</span>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

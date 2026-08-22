@@ -60,6 +60,12 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  if (pathname.startsWith("/notifications")) {
+    if (!isAuthed) {
+      return NextResponse.redirect(new URL("/sign-in?next=/notifications", request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 
@@ -68,6 +74,7 @@ export const config = {
     "/planner/:path*",
     "/vendor/:path*",
     "/admin/:path*",
+    "/notifications",
     "/sign-in",
     "/sign-up",
     "/forgot-password",

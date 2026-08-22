@@ -1,0 +1,13 @@
+export { FadeIn } from "./fade-in";
+export { SectionHeading } from "./section-heading";
+export { CategoryCard } from "./category-card";
+export { LandingHero } from "./landing-hero";
+export { LandingSearch } from "./landing-search";
+export { LandingCategories } from "./landing-categories";
+export { LandingVendors } from "./landing-vendors";
+export { LandingRentals } from "./landing-rentals";
+export { LandingHowItWorks } from "./landing-how-it-works";
+export { LandingWhy } from "./landing-why";
+export { LandingTestimonials } from "./landing-testimonials";
+export { LandingFaq } from "./landing-faq";
+export { LandingCta } from "./landing-cta";

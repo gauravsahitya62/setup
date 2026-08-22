@@ -10,6 +10,7 @@ import com.flowset.auth.dto.ResendVerificationRequest;
 import com.flowset.auth.dto.ResetPasswordRequest;
 import com.flowset.auth.dto.UserResponse;
 import com.flowset.auth.dto.VerifyEmailRequest;
+import com.flowset.audit.AuditLogService;
 import com.flowset.common.RoleName;
 import com.flowset.common.UserStatus;
 import com.flowset.common.VendorVerificationStatus;
@@ -34,6 +35,7 @@ import com.flowset.users.repository.PlannerProfileRepository;
 import com.flowset.users.repository.RefreshTokenRepository;
 import com.flowset.users.repository.UserRepository;
 import com.flowset.users.repository.VendorProfileRepository;
+import com.flowset.vendor.service.VendorService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -73,6 +75,8 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final EmailNotificationService emailNotificationService;
     private final CookieProperties cookieProperties;
+    private final VendorService vendorService;
+    private final AuditLogService auditLogService;
 
     public AuthService(
             UserRepository userRepository,
@@ -86,7 +90,9 @@ public class AuthService {
             JwtService jwtService,
             AuthenticationManager authenticationManager,
             EmailNotificationService emailNotificationService,
-            CookieProperties cookieProperties
+            CookieProperties cookieProperties,
+            VendorService vendorService,
+            AuditLogService auditLogService
     ) {
         this.userRepository = userRepository;
         this.plannerProfileRepository = plannerProfileRepository;
@@ -100,6 +106,8 @@ public class AuthService {
         this.authenticationManager = authenticationManager;
         this.emailNotificationService = emailNotificationService;
         this.cookieProperties = cookieProperties;
+        this.vendorService = vendorService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -146,6 +154,8 @@ public class AuthService {
         profile.setVerificationStatus(VendorVerificationStatus.PENDING);
         vendorProfileRepository.save(profile);
 
+        vendorService.createDraftForOwner(user.getId(), request.businessName(), user.getEmail());
+
         issueEmailVerification(user);
         log.info("Registration success role=VENDOR userId={} email={}", user.getId(), user.getEmail());
         return issueSession(user, httpRequest, httpResponse);
@@ -172,6 +182,9 @@ public class AuthService {
                 throw new UnauthorizedException("Account is suspended");
             }
 
+            user.setLastLoginAt(Instant.now());
+            userRepository.save(user);
+            auditLogService.log("USER_LOGIN", user.getId().toString(), user.getId().toString(), user.getRole().name());
             log.info("Login success userId={} role={}", user.getId(), user.getRole());
             return issueSession(user, httpRequest, httpResponse);
         } catch (UnauthorizedException ex) {

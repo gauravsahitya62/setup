@@ -1,7 +1,7 @@
 export type UserRole = "planner" | "vendor" | "admin" | "guest";
 
 export type BookingStatus =
-  "draft" | "requested" | "quoted" | "confirmed" | "in_progress" | "completed" | "cancelled";
+  "DRAFT" | "PENDING" | "ACCEPTED" | "REJECTED" | "CANCELLED" | "CONFIRMED" | "COMPLETED";
 
 export type VendorVerificationStatus = "pending" | "verified" | "rejected" | "suspended";
 
@@ -46,6 +46,8 @@ export interface VendorSocialLinks {
   instagram?: string;
   linkedin?: string;
   facebook?: string;
+  youtube?: string;
+  pinterest?: string;
 }
 
 export interface VendorReview {
@@ -116,17 +118,60 @@ export interface Category extends BaseEntity {
   productCount: number;
 }
 
+export type ProjectStatus = "DRAFT" | "PLANNING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+
+export type EventType =
+  | "WEDDING"
+  | "RECEPTION"
+  | "ENGAGEMENT"
+  | "HALDI"
+  | "MEHENDI"
+  | "CORPORATE"
+  | "CONFERENCE"
+  | "EXHIBITION"
+  | "CONCERT"
+  | "FILM_SHOOT"
+  | "PRIVATE_EVENT"
+  | "OTHER";
+
+export interface ProjectProgressTask {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
+export interface ProjectProgress {
+  percent: number;
+  completed: number;
+  total: number;
+  tasks: ProjectProgressTask[];
+}
+
 export interface Project extends BaseEntity {
   plannerId: string;
   name: string;
+  slug: string;
+  eventType: EventType;
   description?: string;
   eventDate?: string;
-  location?: string;
-  status: BookingStatus;
-  budget?: number;
-  currency?: string;
+  startTime?: string;
+  endTime?: string;
+  venueName?: string;
+  venueAddress?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  guestCount?: number;
+  status: ProjectStatus;
   coverImageUrl?: string;
+  productCount?: number;
   vendorCount?: number;
+  moodBoardItemCount?: number;
+  noteCount?: number;
+  fileCount?: number;
+  progressPercent?: number;
+  progress?: ProjectProgress;
+  location?: string;
   itemCount?: number;
 }
 
@@ -230,10 +275,12 @@ export interface BookingRequest extends BaseEntity {
   vendorId: string;
   vendorName: string;
   vendorLogoUrl?: string;
+  plannerName?: string;
   itemsSummary: string;
   status: BookingStatus;
   amount?: number;
   currency?: string;
+  eventDate?: string;
   requestedAt: string;
 }
 
@@ -244,7 +291,7 @@ export interface UpcomingEvent {
   date: string;
   time?: string;
   location: string;
-  status: BookingStatus;
+  status: ProjectStatus;
   guestCount?: number;
 }
 

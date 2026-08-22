@@ -103,6 +103,25 @@ class AuthIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.user.role").value("VENDOR"));
 
+        String token = objectMapper.readTree(
+                        mockMvc.perform(post("/api/v1/auth/login")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(objectMapper.writeValueAsString(Map.of(
+                                                "email", email,
+                                                "password", "Str0ng!Pass"))))
+                                .andExpect(status().isOk())
+                                .andReturn()
+                                .getResponse()
+                                .getContentAsString())
+                .path("accessToken")
+                .asText();
+
+        mockMvc.perform(get("/api/v1/vendors/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.companyName").value("Atlas Event Rentals"))
+                .andExpect(jsonPath("$.slug").value("atlas-event-rentals"))
+                .andExpect(jsonPath("$.status").value("DRAFT"));
+
         mockMvc.perform(post("/api/v1/auth/register/vendor")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))

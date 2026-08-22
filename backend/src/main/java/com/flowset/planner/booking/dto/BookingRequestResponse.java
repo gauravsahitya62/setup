@@ -1,0 +1,53 @@
+package com.flowset.planner.booking.dto;
+
+import com.flowset.common.BookingRejectionReason;
+import com.flowset.common.BookingRequestStatus;
+import com.flowset.common.EventType;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+public record BookingRequestResponse(
+        UUID id,
+        UUID projectId,
+        String projectName,
+        EventType eventType,
+        Integer guestCount,
+        UUID plannerId,
+        String plannerName,
+        UUID vendorId,
+        String vendorName,
+        String vendorSlug,
+        String vendorLogoUrl,
+        boolean vendorVerified,
+        BookingRequestStatus status,
+        LocalDate eventDate,
+        LocalDate rentalStartDate,
+        LocalDate rentalEndDate,
+        int rentalDays,
+        LocalDate deliveryDate,
+        LocalDate pickupDate,
+        String venueName,
+        String venueAddress,
+        String city,
+        String state,
+        String plannerNotes,
+        String vendorNotes,
+        BookingRejectionReason rejectionReason,
+        BigDecimal estimatedRentalValue,
+        String currency,
+        Instant requestedAt,
+        Instant respondedAt,
+        Instant viewedAt,
+        Instant cancelledAt,
+        Instant createdAt,
+        Instant updatedAt,
+        UUID orderId,
+        List<BookingRequestItemResponse> items,
+        BookingDeliveryResponse delivery,
+        List<BookingTimelineEventResponse> timeline,
+        List<BookingNoteResponse> notes
+) {
+}

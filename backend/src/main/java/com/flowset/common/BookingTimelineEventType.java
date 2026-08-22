@@ -1,0 +1,16 @@
+package com.flowset.common;
+
+public enum BookingTimelineEventType {
+    REQUEST_CREATED,
+    REQUEST_SENT,
+    VENDOR_VIEWED,
+    VENDOR_ACCEPTED,
+    INVENTORY_RESERVED,
+    CONFIRMED,
+    VENDOR_REJECTED,
+    PLANNER_CANCELLED,
+    INVENTORY_RELEASED,
+    INVENTORY_UNAVAILABLE,
+    STATUS_CHANGED,
+    COMPLETED
+}

@@ -2,10 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Bell, Menu, Plus } from "lucide-react";
+import { Menu, Plus } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,8 +16,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SearchBar } from "@/components/shared/search-bar";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { NotificationCenter } from "@/components/notifications/notification-center";
 import { QuickAddProjectDialog } from "@/components/planner/quick-add-project-dialog";
-import { PLANNER_NOTIFICATIONS, PLANNER_USER } from "@/constants/planner";
+import { PLANNER_USER } from "@/constants/planner";
 import { ROUTES } from "@/constants";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers";
@@ -32,7 +32,6 @@ export function PlannerNavbar({ className }: PlannerNavbarProps) {
   const { setSidebarOpen } = useUIStore();
   const { logout } = useAuth();
   const [addOpen, setAddOpen] = React.useState(false);
-  const unreadCount = PLANNER_NOTIFICATIONS.filter((n) => n.unread).length;
   const initials = `${PLANNER_USER.firstName.charAt(0)}${PLANNER_USER.lastName.charAt(0)}`;
 
   return (
@@ -72,47 +71,7 @@ export function PlannerNavbar({ className }: PlannerNavbarProps) {
               <Plus className="size-4" />
             </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative rounded-xl"
-                  aria-label="Notifications"
-                >
-                  <Bell className="size-4" />
-                  {unreadCount > 0 ? (
-                    <Badge className="absolute -top-1 -right-1 h-5 min-w-5 justify-center rounded-md px-1 text-[10px]">
-                      {unreadCount}
-                    </Badge>
-                  ) : null}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80">
-                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {PLANNER_NOTIFICATIONS.map((notification) => (
-                  <DropdownMenuItem
-                    key={notification.id}
-                    className="flex flex-col items-start gap-1 py-3"
-                    asChild
-                  >
-                    <Link href={ROUTES.planner.notifications}>
-                      <div className="flex w-full items-center justify-between gap-2">
-                        <span className="font-medium">{notification.title}</span>
-                        {notification.unread ? (
-                          <span className="bg-foreground size-1.5 rounded-full" />
-                        ) : null}
-                      </div>
-                      <span className="text-muted-foreground line-clamp-2 text-xs">
-                        {notification.body}
-                      </span>
-                      <span className="text-muted-foreground text-[11px]">{notification.time}</span>
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <NotificationCenter />
 
             <ThemeToggle />
 

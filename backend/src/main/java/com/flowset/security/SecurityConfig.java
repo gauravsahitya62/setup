@@ -65,8 +65,23 @@ public class SecurityConfig {
                                 "/actuator/info",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/swagger-ui.html",
+                                "/api/v1/files/**"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/vendors/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/vendors/slug/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/vendors/*/service-areas").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/vendors/*/social-links").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/vendors/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/vendors").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/vendors/*/products").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/vendors/*/reviews").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/search").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/search/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/collections/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/inventory/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex

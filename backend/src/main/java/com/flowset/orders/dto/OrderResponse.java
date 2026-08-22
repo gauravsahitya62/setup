@@ -1,0 +1,50 @@
+package com.flowset.orders.dto;
+
+import com.flowset.common.EventType;
+import com.flowset.common.OrderStatus;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+public record OrderResponse(
+        UUID id,
+        String orderNumber,
+        UUID bookingRequestId,
+        UUID projectId,
+        String projectName,
+        EventType eventType,
+        Integer guestCount,
+        UUID plannerId,
+        String plannerName,
+        UUID vendorId,
+        String vendorName,
+        String vendorSlug,
+        String vendorLogoUrl,
+        OrderStatus status,
+        LocalDate eventDate,
+        LocalDate rentalStartDate,
+        LocalDate rentalEndDate,
+        int rentalDays,
+        LocalDate deliveryDate,
+        LocalDate pickupDate,
+        BigDecimal estimatedSubtotal,
+        BigDecimal deliveryFee,
+        BigDecimal securityDeposit,
+        BigDecimal totalAmount,
+        String currency,
+        String plannerNotes,
+        String vendorNotes,
+        Instant createdAt,
+        Instant updatedAt,
+        Instant completedAt,
+        Instant cancelledAt,
+        List<OrderItemResponse> items,
+        DeliveryResponse delivery,
+        PickupResponse pickup,
+        List<OrderTimelineEventResponse> timeline,
+        List<OrderNoteResponse> notes,
+        OrderActions actions
+) {
+}

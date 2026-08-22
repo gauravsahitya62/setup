@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Menu, Plus } from "lucide-react";
+import { Menu, Plus } from "lucide-react";
 
+import { NotificationCenter } from "@/components/notifications/notification-center";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,8 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SearchBar } from "@/components/shared/search-bar";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { VENDOR_OPERATOR, getVendorDashboardProfile } from "@/constants/vendor-dashboard";
 import { ROUTES } from "@/constants";
+import { useMyVendor } from "@/hooks/use-my-vendor";
 import { useAuth } from "@/providers";
 import { useUIStore } from "@/store";
 import { cn } from "@/lib/utils";
@@ -28,9 +28,15 @@ interface VendorOpsNavbarProps {
 
 export function VendorOpsNavbar({ className }: VendorOpsNavbarProps) {
   const { setSidebarOpen } = useUIStore();
-  const { logout } = useAuth();
-  const profile = getVendorDashboardProfile();
-  const initials = `${VENDOR_OPERATOR.firstName.charAt(0)}${VENDOR_OPERATOR.lastName.charAt(0)}`;
+  const { logout, user } = useAuth();
+  const { vendor } = useMyVendor();
+
+  const firstName = user?.firstName ?? "Vendor";
+  const lastName = user?.lastName ?? "";
+  const companyName = vendor?.companyName ?? "Company profile";
+  const publicSlug = vendor?.slug;
+  const initials =
+    `${firstName.charAt(0)}${lastName.charAt(0) || firstName.charAt(1) || "V"}`.toUpperCase();
 
   return (
     <header
@@ -67,17 +73,7 @@ export function VendorOpsNavbar({ className }: VendorOpsNavbarProps) {
             </Link>
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative rounded-xl"
-            aria-label="Notifications"
-          >
-            <Bell className="size-4" />
-            <Badge className="absolute -top-1 -right-1 h-5 min-w-5 justify-center rounded-md px-1 text-[10px]">
-              3
-            </Badge>
-          </Button>
+          <NotificationCenter />
 
           <ThemeToggle />
 
@@ -87,24 +83,28 @@ export function VendorOpsNavbar({ className }: VendorOpsNavbarProps) {
                 <Avatar size="sm">
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
-                <span className="hidden text-sm font-medium lg:inline">
-                  {VENDOR_OPERATOR.firstName}
-                </span>
+                <span className="hidden text-sm font-medium lg:inline">{firstName}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
                 <div className="flex flex-col gap-0.5">
                   <span>
-                    {VENDOR_OPERATOR.firstName} {VENDOR_OPERATOR.lastName}
+                    {firstName} {lastName}
                   </span>
-                  <span className="text-muted-foreground text-xs font-normal">{profile.name}</span>
+                  <span className="text-muted-foreground text-xs font-normal">{companyName}</span>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href={`${ROUTES.vendors}/${profile.slug}`}>Public profile</Link>
-              </DropdownMenuItem>
+              {publicSlug ? (
+                <DropdownMenuItem asChild>
+                  <Link href={`${ROUTES.vendors}/${publicSlug}`}>Public profile</Link>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem asChild>
+                  <Link href={ROUTES.vendor.profileWizard}>Complete profile</Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem asChild>
                 <Link href={ROUTES.vendor.settings}>Settings</Link>
               </DropdownMenuItem>

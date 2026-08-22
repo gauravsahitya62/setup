@@ -1,6 +1,6 @@
 package com.flowset.admin;
 
-/** Admin domain module placeholder — moderation/ops features land here. */
+/** Admin domain: dashboard, users, vendors, products, reports, audit, settings, support. */
 public final class AdminModule {
     private AdminModule() {
     }

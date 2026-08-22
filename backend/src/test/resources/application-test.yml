@@ -26,6 +26,19 @@ flowset:
   cookie:
     secure: false
     same-site: Lax
+  storage:
+    provider: local
+    local-root: ./uploads-test
+    public-base-url: http://localhost:8080/api/v1/files
+  inventory:
+    low-stock-threshold-percent: 20
+    max-calendar-days: 366
+  notifications:
+    retention-days: 90
+    archive-enabled: false
+  reviews:
+    edit-window-days: 30
+    max-text-length: 2000
 
 logging:
   level:

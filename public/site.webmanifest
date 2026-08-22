@@ -1,0 +1,16 @@
+{
+  "name": "FlowSet",
+  "short_name": "FlowSet",
+  "description": "B2B marketplace and operating system for the event industry.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#12141a",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

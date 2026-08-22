@@ -41,3 +41,17 @@
 ## Protected routes
 
 Middleware / client guards protect `/planner/*`, `/vendor/*`, `/admin/*` by required role.
+
+## Planner projects
+
+1. Planner opens `/planner/projects/new` (or Quick add on the dashboard).
+2. Enters name, event type, optional date/guests/venue/cover. Save as draft or create (`PLANNING`).
+3. Workspace at `/planner/projects/{id}`: overview, products, vendors, mood board, notes, files, activity, booking requests, orders.
+4. Marketplace **Add to Project** picks an existing project or prompts to create the first one. From `/planner/projects/{id}/marketplace`, adds go to that project.
+5. Adding a product or saving a vendor does **not** send a booking request or reserve inventory.
+6. **Request booking** (`/planner/projects/{id}/booking`) sends a PENDING request to one vendor. Repeat for other vendors. Vendors accept/reject at `/vendor/requests`. Accept reserves inventory and creates an Order.
+7. Planner tracks fulfillment at `/planner/orders`. Vendor fulfills at `/vendor/bookings` (schedule delivery → delivered → pickup → completed).
+8. After an order is **COMPLETED**, the planner can leave one verified review (`/planner/reviews` or the order page) for 30 days. The public vendor profile and marketplace cards show the live aggregate (never `0.0` when there are no reviews). Admins moderate at `/admin/reviews`.
+9. The bell in planner/vendor/admin shells shows unread in-app notifications. Inbox: `/planner/notifications`, `/vendor/notifications`, `/admin/notifications` (or `/notifications` which redirects by role). Preferences live on each role's Settings page.
+
+Details: [`docs/projects/project-workflow.md`](./projects/project-workflow.md), [`docs/booking/booking-workflow.md`](./booking/booking-workflow.md), [`docs/orders/order-workflow.md`](./orders/order-workflow.md), [`docs/reviews/review-workflow.md`](./reviews/review-workflow.md), and [`docs/notifications/notification-architecture.md`](./notifications/notification-architecture.md).
