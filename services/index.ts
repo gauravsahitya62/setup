@@ -49,6 +49,8 @@ export {
   type VendorInventoryItemDto,
   type VendorInventoryDetailDto,
   type CalendarDayDto,
+  type CalendarOccupancyDto,
+  type CalendarOccupancyBookingDto,
   type AvailabilityCheckDto,
   type InventoryAdjustPayload,
   type MaintenanceCreatePayload,

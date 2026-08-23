@@ -25,16 +25,25 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      SPRING_PROFILES_ACTIVE: dev
+      APPLICATION_ENV: development
       DATABASE_URL: jdbc:postgresql://postgres:5432/flowset
       DATABASE_USERNAME: flowset
       DATABASE_PASSWORD: flowset
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-me-access-secret-min-32-chars-long!!}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-secret-min-32-chars-long!}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-must-be-at-least-32-characters}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-must-be-at-least-32-characters}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
-      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SECURE: "false"
+      STORAGE_PROVIDER: local
+      STORAGE_LOCAL_ROOT: /app/uploads
+      STORAGE_PUBLIC_BASE_URL: http://localhost:8080/api/v1/files
+      FRONTEND_URL: http://localhost:3000
       SERVER_PORT: 8080
+    volumes:
+      - flowset_uploads:/app/uploads
     ports:
       - "8080:8080"
 
 volumes:
   flowset_pg_data:
+  flowset_uploads:

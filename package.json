@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "smoke": "node scripts/smoke-test.mjs",
     "prepare": "husky"
   },
   "lint-staged": {

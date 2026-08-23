@@ -27,3 +27,4 @@ export { BookingRequestWizard } from "./booking-request-wizard";
 export { PlannerBookingRequestList } from "./planner-booking-request-list";
 export { ProjectOrdersSection } from "./project-orders-section";
 export { SaveVendorDialog } from "./save-vendor-dialog";
+export { ProjectPickerFields } from "./project-picker-fields";

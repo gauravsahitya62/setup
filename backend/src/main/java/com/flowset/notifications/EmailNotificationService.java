@@ -5,8 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Placeholder notification service. Tokens are logged for local development only.
- * Production will replace this with a real email provider.
+ * Outbound email is not wired to a provider yet. Never log raw tokens or addresses.
  */
 @Service
 public class EmailNotificationService {
@@ -14,10 +13,16 @@ public class EmailNotificationService {
     private static final Logger log = LoggerFactory.getLogger(EmailNotificationService.class);
 
     public void sendEmailVerification(String email, String rawToken) {
-        log.info("EMAIL_VERIFICATION placeholder to={} token={}", email, rawToken);
+        if (email == null || email.isBlank() || rawToken == null || rawToken.isBlank()) {
+            return;
+        }
+        log.info("EMAIL_VERIFICATION queued (recipient and token omitted)");
     }
 
     public void sendPasswordReset(String email, String rawToken) {
-        log.info("PASSWORD_RESET placeholder to={} token={}", email, rawToken);
+        if (email == null || email.isBlank() || rawToken == null || rawToken.isBlank()) {
+            return;
+        }
+        log.info("PASSWORD_RESET queued (recipient and token omitted)");
     }
 }

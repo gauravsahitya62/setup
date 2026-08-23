@@ -265,7 +265,12 @@ export function VendorInventoryPage() {
                           ) : null}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate font-medium">{item.name}</p>
+                          <Link
+                            href={ROUTES.vendor.productEdit(item.id)}
+                            className="hover:text-foreground truncate font-medium hover:underline"
+                          >
+                            {item.name}
+                          </Link>
                           <p className="text-muted-foreground truncate text-xs">{item.slug}</p>
                         </div>
                       </div>
@@ -309,6 +314,12 @@ export function VendorInventoryPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={ROUTES.vendor.productEdit(item.id)}>
+                              <FileEdit className="size-3.5" />
+                              Edit
+                            </Link>
+                          </DropdownMenuItem>
                           {item.status === "PUBLISHED" ? (
                             <DropdownMenuItem asChild>
                               <Link href={ROUTES.product(item.slug)} target="_blank">

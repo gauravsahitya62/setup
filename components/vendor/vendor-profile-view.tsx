@@ -6,6 +6,7 @@ import { VendorProfileHeader } from "@/components/vendor/vendor-profile-header";
 import { VendorReviews } from "@/components/vendor/vendor-reviews";
 import { VendorServiceCities } from "@/components/vendor/vendor-service-cities";
 import { VendorSocialLinksCard } from "@/components/vendor/vendor-social-links";
+import { AnalyticsPageView } from "@/components/shared/analytics-page-view";
 import type { MarketplaceListing, VendorProfile } from "@/types";
 
 interface VendorProfilePageProps {
@@ -16,6 +17,10 @@ interface VendorProfilePageProps {
 export function VendorProfileView({ vendor, listings }: VendorProfilePageProps) {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      <AnalyticsPageView
+        event="vendor_viewed"
+        properties={{ verified: vendor.verificationStatus === "verified" }}
+      />
       <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
         <VendorProfileHeader vendor={vendor} />
       </div>
@@ -25,7 +30,7 @@ export function VendorProfileView({ vendor, listings }: VendorProfilePageProps) 
           <VendorAbout about={vendor.about} highlights={vendor.highlights} />
           <VendorServiceCities cities={vendor.serviceCities} hq={vendor.location} />
           <VendorPortfolio portfolio={vendor.portfolio} />
-          <VendorProductsGrid listings={listings} vendorName={vendor.name} />
+          <VendorProductsGrid listings={listings} vendorName={vendor.name} vendorId={vendor.id} />
           <VendorReviews
             vendorId={vendor.id}
             rating={vendor.rating}

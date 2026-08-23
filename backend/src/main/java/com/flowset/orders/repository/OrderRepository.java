@@ -13,6 +13,8 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID>, JpaSp
 
     Optional<OrderEntity> findByBookingRequestId(UUID bookingRequestId);
 
+    List<OrderEntity> findByBookingRequestIdIn(Collection<UUID> bookingRequestIds);
+
     Optional<OrderEntity> findByIdAndPlannerId(UUID id, UUID plannerId);
 
     Optional<OrderEntity> findByIdAndVendorId(UUID id, UUID vendorId);

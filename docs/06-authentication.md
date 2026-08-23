@@ -59,7 +59,15 @@ FlowSet auth is a JWT modular-monolith slice under `backend/` with a Next.js cli
 
 ## Swagger
 
-UI: `http://localhost:8080/swagger-ui.html`
+UI: `http://localhost:8080/swagger-ui.html` on the `dev` profile. Disabled when `SPRING_PROFILES_ACTIVE` is `staging` or `prod`.
+
+## Request correlation
+
+Clients send `X-Request-ID`. The API validates a conservative charset and echoes the header. Logs include `rid=` and `uid=` (authenticated user id only).
+
+## Rate limiting
+
+Sensitive auth routes and selected search/support/admin writes are rate limited in-memory per application instance.
 
 ## Run
 

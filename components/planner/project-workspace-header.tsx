@@ -8,6 +8,7 @@ import {
   MapPin,
   MoreHorizontal,
   Pencil,
+  Send,
   Store,
   Trash2,
   Users,
@@ -158,7 +159,7 @@ export function ProjectWorkspaceHeader({ project, onEdit }: ProjectWorkspaceHead
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" className="rounded-xl" onClick={onEdit}>
                 <Pencil className="size-3.5" />
                 Edit
@@ -186,12 +187,29 @@ export function ProjectWorkspaceHeader({ project, onEdit }: ProjectWorkspaceHead
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button size="sm" className="rounded-xl" asChild>
-                <Link href={ROUTES.planner.projectMarketplace(project.id)}>
-                  <Store className="size-3.5" />
-                  Add products
-                </Link>
-              </Button>
+              {(project.productCount ?? 0) > 0 ? (
+                <>
+                  <Button variant="outline" size="sm" className="rounded-xl" asChild>
+                    <Link href={ROUTES.planner.projectMarketplace(project.id)}>
+                      <Store className="size-3.5" />
+                      Add products
+                    </Link>
+                  </Button>
+                  <Button size="sm" className="rounded-xl" asChild>
+                    <Link href={ROUTES.planner.projectBookingNew(project.id)}>
+                      <Send className="size-3.5" />
+                      Request booking
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                <Button size="sm" className="rounded-xl" asChild>
+                  <Link href={ROUTES.planner.projectMarketplace(project.id)}>
+                    <Store className="size-3.5" />
+                    Add products
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
 

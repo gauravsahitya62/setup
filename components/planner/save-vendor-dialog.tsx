@@ -1,16 +1,14 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/shared/modal";
-import { ROUTES } from "@/constants";
-import { useAuth } from "@/providers";
-import { ApiClientError, mapProjectSummary, projectApi } from "@/services";
+import { ProjectPickerFields } from "@/components/planner/project-picker-fields";
+import { usePlannerProjectOptions } from "@/hooks/use-planner-project-options";
+import { ApiClientError, projectApi } from "@/services";
 
 interface SaveVendorDialogProps {
   vendorId: string;
@@ -27,39 +25,24 @@ export function SaveVendorDialog({
   onOpenChange,
   projectId,
 }: SaveVendorDialogProps) {
-  const { isAuthenticated, role } = useAuth();
-  const [projects, setProjects] = React.useState<{ id: string; name: string }[]>([]);
+  const { projects, loading, error, canUse, isAuthenticated, reload, addProject } =
+    usePlannerProjectOptions(open);
   const [selectedId, setSelectedId] = React.useState(projectId ?? "");
-  const [loading, setLoading] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
 
   React.useEffect(() => {
-    if (!open || role !== "planner" || !isAuthenticated) return;
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const page = await projectApi.list({ size: 50, sort: "updatedAt", direction: "desc" });
-        if (cancelled) return;
-        const mapped = page.content.map(mapProjectSummary);
-        setProjects(mapped.map((project) => ({ id: project.id, name: project.name })));
-        setSelectedId(projectId || mapped[0]?.id || "");
-      } catch {
-        if (!cancelled) setProjects([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    if (projectId) {
+      setSelectedId(projectId);
+      return;
     }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, role, isAuthenticated, projectId]);
+    if (selectedId && projects.some((project) => project.id === selectedId)) return;
+    setSelectedId(projects[0]?.id ?? "");
+  }, [projectId, projects, selectedId]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!selectedId) {
-      toast.error("Create a project first.");
+      toast.error("Create or choose a project first.");
       return;
     }
     setSubmitting(true);
@@ -95,7 +78,7 @@ export function SaveVendorDialog({
             type="submit"
             form="save-vendor"
             className="rounded-xl"
-            disabled={submitting || loading}
+            disabled={submitting || loading || !selectedId}
           >
             {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
             Save vendor
@@ -103,33 +86,20 @@ export function SaveVendorDialog({
         </>
       }
     >
-      <form id="save-vendor" className="space-y-4" onSubmit={handleSubmit}>
-        {loading ? (
-          <p className="text-muted-foreground text-sm">Loading projects…</p>
-        ) : projects.length === 0 ? (
-          <div className="space-y-3 text-sm">
-            <p className="font-medium">Create your first project</p>
-            <Button className="rounded-xl" asChild>
-              <Link href={ROUTES.planner.projectNew}>Create project</Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <Label htmlFor="save-vendor-project">Project</Label>
-            <select
-              id="save-vendor-project"
-              value={selectedId}
-              onChange={(event) => setSelectedId(event.target.value)}
-              className="border-input bg-background h-11 w-full rounded-xl border px-3 text-sm"
-            >
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+      <form id="save-vendor" className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
+        <ProjectPickerFields
+          projects={projects}
+          loading={loading}
+          error={error}
+          canUse={canUse}
+          isAuthenticated={isAuthenticated}
+          lockedProjectId={projectId}
+          selectedId={selectedId}
+          onSelectedIdChange={setSelectedId}
+          onCreated={addProject}
+          onRetry={() => void reload()}
+          selectId="save-vendor-project"
+        />
       </form>
     </Modal>
   );

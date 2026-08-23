@@ -130,7 +130,7 @@ public class AuthService {
         plannerProfileRepository.save(profile);
 
         issueEmailVerification(user);
-        log.info("Registration success role=PLANNER userId={} email={}", user.getId(), user.getEmail());
+        log.info("Registration success role=PLANNER userId={}", user.getId());
         return issueSession(user, httpRequest, httpResponse);
     }
 
@@ -157,7 +157,7 @@ public class AuthService {
         vendorService.createDraftForOwner(user.getId(), request.businessName(), user.getEmail());
 
         issueEmailVerification(user);
-        log.info("Registration success role=VENDOR userId={} email={}", user.getId(), user.getEmail());
+        log.info("Registration success role=VENDOR userId={}", user.getId());
         return issueSession(user, httpRequest, httpResponse);
     }
 
@@ -190,7 +190,7 @@ public class AuthService {
         } catch (UnauthorizedException ex) {
             throw ex;
         } catch (Exception ex) {
-            log.warn("Login failure email={}", normalizeEmail(request.email()));
+            log.warn("Login failure (email omitted)");
             throw new UnauthorizedException("Invalid email or password");
         }
     }

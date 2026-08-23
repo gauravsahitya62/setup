@@ -12,7 +12,7 @@ export default function VendorAnalyticsPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Analytics</h1>
         <p className="text-muted-foreground text-sm">
-          Revenue mix, booking volume, and category performance.
+          Estimated rental value from confirmed orders. This is not collected revenue.
         </p>
       </div>
       <VendorAnalyticsCharts />

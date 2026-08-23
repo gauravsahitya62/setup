@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { AuthenticatedFileGallery } from "@/components/shared/authenticated-file-gallery";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Modal } from "@/components/shared/modal";
 import { SkeletonLoader } from "@/components/shared/skeleton-loader";
@@ -16,6 +17,7 @@ import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 import { OrderReviewPrompt } from "@/components/reviews/order-review-prompt";
 import { ROUTES } from "@/constants";
+import { track } from "@/lib/analytics";
 import {
   DELIVERY_STATUS_LABELS,
   PICKUP_STATUS_LABELS,
@@ -64,12 +66,17 @@ export function OrderDetail({ orderId, role }: OrderDetailProps) {
     void load();
   }, [load]);
 
-  const run = async (action: () => Promise<OrderDto>, success: string) => {
+  const run = async (
+    action: () => Promise<OrderDto>,
+    success: string,
+    event?: "delivery_completed" | "order_completed"
+  ) => {
     setBusy(true);
     try {
       const dto = await action();
       setOrder(dto);
       toast.success(success);
+      if (event) track(event);
     } catch (err) {
       toast.error(err instanceof ApiClientError ? err.message : orderErrorMessage(err));
       await load();
@@ -162,7 +169,11 @@ export function OrderDetail({ orderId, role }: OrderDetailProps) {
               className="rounded-xl"
               disabled={busy}
               onClick={() =>
-                void run(() => orderApi.vendor.markDelivered(orderId), "Marked delivered")
+                void run(
+                  () => orderApi.vendor.markDelivered(orderId),
+                  "Marked delivered",
+                  "delivery_completed"
+                )
               }
             >
               Mark delivered
@@ -189,7 +200,11 @@ export function OrderDetail({ orderId, role }: OrderDetailProps) {
               className="rounded-xl"
               disabled={busy}
               onClick={() =>
-                void run(() => orderApi.vendor.markPickedUp(orderId), "Picked up — order completed")
+                void run(
+                  () => orderApi.vendor.markPickedUp(orderId),
+                  "Picked up — order completed",
+                  "order_completed"
+                )
               }
             >
               Mark picked up
@@ -288,19 +303,15 @@ export function OrderDetail({ orderId, role }: OrderDetailProps) {
               <p>Delivered {formatOrderDateTime(order.delivery.actualDeliveryTime)}</p>
             ) : null}
             {order.delivery.proofs.length > 0 ? (
-              <ul className="space-y-1">
-                {order.delivery.proofs.map((proof) => (
-                  <li key={proof.id}>
-                    <a className="underline" href={proof.fileUrl} target="_blank" rel="noreferrer">
-                      {proof.fileName}
-                    </a>
-                    <span className="text-muted-foreground text-xs">
-                      {" "}
-                      · {formatOrderDateTime(proof.uploadedAt)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <AuthenticatedFileGallery
+                files={order.delivery.proofs}
+                meta={(proof) => (
+                  <span className="text-muted-foreground text-xs">
+                    {" "}
+                    · {formatOrderDateTime(proof.uploadedAt)}
+                  </span>
+                )}
+              />
             ) : (
               <p className="text-muted-foreground">No proof of delivery uploaded.</p>
             )}

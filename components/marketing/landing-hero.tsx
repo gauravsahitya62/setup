@@ -6,8 +6,14 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { LANDING_HERO } from "@/constants/landing";
 import { ROUTES } from "@/constants";
+import { accountNavForRole } from "@/lib/auth/account-nav";
+import { useAuth } from "@/providers";
 
 export function LandingHero() {
+  const { isAuthenticated, isLoading, role } = useAuth();
+  const nav = accountNavForRole(role);
+  const primaryHref = !isLoading && isAuthenticated ? nav.dashboardHref : ROUTES.auth.signUp;
+  const primaryLabel = !isLoading && isAuthenticated ? nav.dashboardLabel : "Start Planning";
   return (
     <section className="relative isolate min-h-[88vh] overflow-hidden">
       <Image
@@ -45,7 +51,7 @@ export function LandingHero() {
               size="lg"
               className="h-12 rounded-xl bg-white px-6 text-base text-neutral-950 hover:bg-white/90"
             >
-              <Link href={ROUTES.auth.signUp}>Start Planning</Link>
+              <Link href={primaryHref}>{primaryLabel}</Link>
             </Button>
             <Button
               asChild

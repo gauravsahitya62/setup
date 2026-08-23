@@ -123,6 +123,7 @@ public class ProjectMapper {
                 item.getImageUrl(),
                 !catalogGone,
                 catalogGone,
+                variant == null ? null : variant.getAvailableQuantity(),
                 item.getCreatedAt(),
                 item.getUpdatedAt());
     }

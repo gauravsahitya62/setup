@@ -97,6 +97,25 @@ class OrderIntegrationTest {
                 .andReturn());
         assertThat(createdOrder.path("orderNumber").asText()).matches("FS-\\d{4}-\\d{6}");
 
+        Map<String, Object> priceChange = new HashMap<>();
+        priceChange.put("name", "Royal Gold Chair");
+        priceChange.put("categoryId", furnitureCategoryId());
+        priceChange.put("pricePerDay", new BigDecimal("700.00"));
+        priceChange.put("status", "PUBLISHED");
+        mockMvc.perform(put("/api/v1/products/{id}", fx.productId)
+                        .header("Authorization", "Bearer " + fx.vendorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(priceChange)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pricePerDay").value(700.0));
+
+        mockMvc.perform(get("/api/v1/orders/{id}", orderId)
+                        .header("Authorization", "Bearer " + fx.plannerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalAmount").value(540.0))
+                .andExpect(jsonPath("$.items[0].pricePerDay").value(18.0))
+                .andExpect(jsonPath("$.items[0].subtotal").value(540.0));
+
         mockMvc.perform(get("/api/v1/vendor/orders")
                         .header("Authorization", "Bearer " + fx.vendorToken))
                 .andExpect(status().isOk())
@@ -430,7 +449,7 @@ class OrderIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("variantId", variantId, "quantity", quantity))))
                 .andExpect(status().isCreated());
-        return new Fixture(plannerToken, vendorToken, projectId, vendorId, variantId);
+        return new Fixture(plannerToken, vendorToken, projectId, vendorId, variantId, productId);
     }
 
     private String furnitureCategoryId() throws Exception {
@@ -529,7 +548,8 @@ class OrderIntegrationTest {
             String vendorToken,
             String projectId,
             String vendorId,
-            String variantId
+            String variantId,
+            String productId
     ) {
     }
 }

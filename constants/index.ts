@@ -74,6 +74,7 @@ export const ROUTES = {
     inventory: "/vendor/inventory",
     inventoryDetail: (variantId: string) => `/vendor/inventory/${variantId}`,
     productWizard: "/vendor/catalog/new",
+    productEdit: (id: string) => `/vendor/catalog/${id}/edit`,
     requests: "/vendor/requests",
     request: (id: string) => `/vendor/requests/${id}`,
     bookings: "/vendor/bookings",

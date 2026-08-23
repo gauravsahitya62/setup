@@ -4,24 +4,34 @@ import { ArrowUpRight, Plus } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { PLANNER_STATS } from "@/constants/planner";
 import { ROUTES } from "@/constants";
 import { useAuth } from "@/providers";
 
 interface WelcomeSectionProps {
   onAddProject?: () => void;
   projectCount?: number;
+  openRequestCount?: number;
+  upcomingEventCount?: number;
 }
 
-export function WelcomeSection({ onAddProject, projectCount }: WelcomeSectionProps) {
+export function WelcomeSection({
+  onAddProject,
+  projectCount,
+  openRequestCount,
+  upcomingEventCount,
+}: WelcomeSectionProps) {
   const { user } = useAuth();
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const firstName = user?.firstName ?? "there";
   const stats = [
     { label: "Projects", value: projectCount != null ? String(projectCount) : "—" },
-    ...PLANNER_STATS.filter((stat) => stat.label !== "Active projects"),
-  ].slice(0, 4);
+    { label: "Open requests", value: openRequestCount != null ? String(openRequestCount) : "—" },
+    {
+      label: "Upcoming events",
+      value: upcomingEventCount != null ? String(upcomingEventCount) : "—",
+    },
+  ];
 
   return (
     <section className="border-border/60 from-muted/50 via-background to-background shadow-soft animate-in fade-in slide-in-from-bottom-3 overflow-hidden rounded-3xl border bg-gradient-to-br p-6 duration-500 sm:p-8">
@@ -54,7 +64,7 @@ export function WelcomeSection({ onAddProject, projectCount }: WelcomeSectionPro
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[420px]">
+        <div className="grid grid-cols-3 gap-3 lg:min-w-[360px]">
           {stats.map((stat, index) => (
             <div
               key={stat.label}

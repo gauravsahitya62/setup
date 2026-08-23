@@ -251,8 +251,8 @@ export function AdminVendorDetailPage() {
         <div className="grid gap-3 sm:grid-cols-3">
           {vendor.portfolio.map((item) => (
             <div key={item.id} className="overflow-hidden rounded-xl border">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               {item.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- remote vendor URLs vary by storage host
                 <img src={item.imageUrl} alt="" className="h-32 w-full object-cover" />
               ) : null}
               <p className="p-2 text-sm">{item.title ?? "Untitled"}</p>

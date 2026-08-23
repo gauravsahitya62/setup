@@ -371,6 +371,22 @@ public class InventoryAvailabilityService {
     }
 
     @Transactional(readOnly = true)
+    public OccupancyEntries occupancyEntries(List<InventoryEntity> inventories, LocalDate date) {
+        if (inventories == null || inventories.isEmpty()) {
+            return new OccupancyEntries(List.of(), List.of());
+        }
+        List<UUID> variantIds = inventories.stream().map(inventory -> inventory.getVariant().getId()).toList();
+        return new OccupancyEntries(
+                reservationRepository.findConfirmedOverlappingForVariants(variantIds, date, date),
+                blockRepository.findActiveOverlappingForVariants(variantIds, date, date));
+    }
+
+    public record OccupancyEntries(
+            List<InventoryReservationEntity> reservations,
+            List<InventoryBlockEntity> blocks
+    ) {}
+
+    @Transactional(readOnly = true)
     public Map<UUID, Occupancy> occupancyOn(Collection<UUID> variantIds, LocalDate date) {
         if (variantIds == null || variantIds.isEmpty()) {
             return Map.of();

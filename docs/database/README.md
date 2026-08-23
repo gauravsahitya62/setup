@@ -198,3 +198,11 @@ Flyway: `backend/src/main/resources/db/migration/V10__admin_platform.sql`
 Also indexed: user status (V1), vendor status (V2), product status (V3), review status (V9), support ticket status (V10).
 
 Rules: [`docs/admin/`](../admin/README.md), [`docs/security/`](../security/README.md).
+
+## Indexes and pooling (pilot)
+
+Existing migrations already index the hot paths (users, vendors, products, variants, inventory reservations, projects, booking requests, orders, reviews, notifications, audit logs, support tickets). No extra indexes were added in the production-readiness pass; several tables already have compound status/date indexes matching list/filter queries.
+
+List endpoints clamp page size (typically max 50). Do not add covering indexes without `EXPLAIN` from a production-sized dataset.
+
+HikariCP: 10 connections in development, 20 in `prod` (see `application-prod.yml`). Raise only after RDS `DatabaseConnections` is measured. Recovery: [`docs/operations/database-recovery.md`](../operations/database-recovery.md).

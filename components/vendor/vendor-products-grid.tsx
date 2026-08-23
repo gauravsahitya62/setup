@@ -15,9 +15,10 @@ import { ROUTES } from "@/constants";
 interface VendorProductsGridProps {
   listings: MarketplaceListing[];
   vendorName: string;
+  vendorId?: string;
 }
 
-export function VendorProductsGrid({ listings, vendorName }: VendorProductsGridProps) {
+export function VendorProductsGrid({ listings, vendorName, vendorId }: VendorProductsGridProps) {
   const [quickView, setQuickView] = React.useState<MarketplaceListing | null>(null);
   const [addTarget, setAddTarget] = React.useState<MarketplaceListing | null>(null);
 
@@ -32,7 +33,13 @@ export function VendorProductsGrid({ listings, vendorName }: VendorProductsGridP
             </p>
           </div>
           <Button variant="outline" size="sm" className="rounded-xl" asChild>
-            <Link href={`${ROUTES.marketplace}?q=${encodeURIComponent(vendorName)}`}>
+            <Link
+              href={
+                vendorId
+                  ? `${ROUTES.marketplace}?q=${encodeURIComponent(vendorName)}&vendorId=${encodeURIComponent(vendorId)}`
+                  : `${ROUTES.marketplace}?q=${encodeURIComponent(vendorName)}`
+              }
+            >
               View in marketplace
             </Link>
           </Button>

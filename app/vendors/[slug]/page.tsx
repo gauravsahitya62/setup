@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { RootShell } from "@/components/layout";
 import { VendorProfileView } from "@/components/vendor/vendor-profile-view";
 import { createPageMetadata } from "@/lib/metadata";
-import { fetchVendorProfileBySlug } from "@/lib/vendor-server";
+import { fetchVendorProfileBySlug, fetchVendorPublishedListings } from "@/lib/vendor-server";
 
 interface VendorPageProps {
   params: Promise<{ slug: string }>;
@@ -38,9 +38,11 @@ export default async function VendorProfilePublicPage({ params }: VendorPageProp
     notFound();
   }
 
+  const listings = await fetchVendorPublishedListings(vendor.id);
+
   return (
     <RootShell>
-      <VendorProfileView vendor={vendor} listings={[]} />
+      <VendorProfileView vendor={vendor} listings={listings} />
     </RootShell>
   );
 }

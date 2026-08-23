@@ -25,6 +25,7 @@ public record ProjectProductResponse(
         String imageUrl,
         boolean listed,
         boolean deletedFromCatalog,
+        Integer availableQuantity,
         Instant createdAt,
         Instant updatedAt
 ) {

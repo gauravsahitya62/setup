@@ -30,7 +30,7 @@ backend/
                     # availability engine, search, favorites, collections (see
                     # docs/marketplace/README.md, docs/search/README.md,
                     # docs/inventory/README.md)
-    storage/        # File storage abstraction (local now; S3/R2 later)
+    storage/        # Local or S3 via StorageService; private file ACL in StorageAccessService
     admin/          # Dashboard, users, vendors, products, categories, reports
     audit/          # Immutable audit_logs
     support/        # Support tickets and messages
@@ -78,4 +78,6 @@ All HTTP APIs under `/api/v1`.
 
 ## Configuration
 
-No secrets in source. JWT secrets, DB credentials, and CORS origins come from environment variables.
+No secrets in source. JWT secrets, DB credentials, AWS keys, and CORS origins come from environment variables. Profiles: `dev`, `staging`, `prod`. See [`docs/deployment/environment-variables.md`](./deployment/environment-variables.md).
+
+Pilot topology (Vercel + ECS/Fargate + RDS + S3 + Cloudflare placeholders): [`docs/deployment/production-architecture.md`](./deployment/production-architecture.md).

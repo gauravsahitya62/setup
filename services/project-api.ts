@@ -77,6 +77,7 @@ export interface ProjectProductDto {
   imageUrl?: string | null;
   listed: boolean;
   deletedFromCatalog: boolean;
+  availableQuantity?: number | null;
   createdAt: string;
   updatedAt: string;
 }

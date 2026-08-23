@@ -21,13 +21,7 @@ import {
   type SupportTicketSummaryDto,
 } from "@/services";
 
-export function SupportInbox({
-  title,
-  ticketHref,
-}: {
-  title: string;
-  ticketHref: (id: string) => string;
-}) {
+export function SupportInbox({ title, ticketBasePath }: { title: string; ticketBasePath: string }) {
   const [categories, setCategories] = React.useState<SupportCategoryDto[]>([]);
   const [tickets, setTickets] = React.useState<SupportTicketSummaryDto[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -145,7 +139,7 @@ export function SupportInbox({
         {tickets.map((ticket) => (
           <Link
             key={ticket.id}
-            href={ticketHref(ticket.id)}
+            href={`${ticketBasePath}/${ticket.id}`}
             className="hover:bg-muted/30 block rounded-2xl border p-4"
           >
             <p className="font-medium">{ticket.subject}</p>

@@ -332,6 +332,17 @@ class InventoryAvailabilityIntegrationTest {
                 .andExpect(jsonPath("$[0].date").value("2026-12-12"))
                 .andExpect(jsonPath("$[0].reservedQuantity").value(40))
                 .andExpect(jsonPath("$[0].availableQuantity").value(60));
+
+        mockMvc.perform(get("/api/v1/vendor/calendar/occupancy")
+                        .header("Authorization", "Bearer " + fx.vendorToken)
+                        .param("variant", fx.variantId.toString())
+                        .param("date", DEC_12.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.date").value("2026-12-12"))
+                .andExpect(jsonPath("$.reservedQuantity").value(40))
+                .andExpect(jsonPath("$.bookings.length()").value(1))
+                .andExpect(jsonPath("$.bookings[0].quantity").value(40))
+                .andExpect(jsonPath("$.bookings[0].items[0].quantity").value(40));
     }
 
     @Test

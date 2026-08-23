@@ -163,7 +163,7 @@ class BookingRequestIntegrationTest {
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value(
-                        "Only 70 units are currently available for the selected dates."));
+                        "Royal Gold Chair (Gold): only 70 of 100 requested units are available for the selected dates."));
     }
 
     @Test

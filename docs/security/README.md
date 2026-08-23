@@ -22,10 +22,14 @@ Frontend role cookies only redirect UX. They are not authorization.
 
 Admins send a reset email through the existing forgot-password flow. Admins never set passwords. Impersonation is not in MVP.
 
-## Rate limiting (future)
+## Rate limiting
 
-Not implemented. When added, start with login, password reset, support creation, and moderation POSTs. Prefer a servlet filter + token bucket; do not rely on the Next.js layer.
+In-memory per instance (`RateLimitFilter`). Disabled in the `test` profile.
+
+Protected: login, register, forgot/reset password, email verify/resend, `POST /support/tickets`, `GET /search`, non-GET `/admin/**`.
+
+Not shared across replicas. See `docs/security/security-checklist.md`.
 
 ## Files
 
-Vendor document URLs are private. Public vendor DTOs omit `documents`. Serve files only to the owner or an admin.
+Vendor document URLs are private. Public vendor DTOs omit `documents`. `StorageAccessService` allows public prefixes without auth; GST/PAN, project files, and delivery proofs require the owner or an admin. Production uses S3 (`STORAGE_PROVIDER=s3`); objects are not public-read.

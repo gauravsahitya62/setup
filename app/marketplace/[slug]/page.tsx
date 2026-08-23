@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 import { RootShell } from "@/components/layout";
-import { ProductDetailView } from "@/components/marketplace";
+import { ProductDetailLoader } from "@/components/marketplace";
 import { createPageMetadata } from "@/lib/metadata";
 import { fetchProductBySlug } from "@/lib/marketplace-server";
 
@@ -33,15 +32,10 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
 export default async function MarketplaceProductPage({ params }: ProductPageProps) {
   const { slug } = await params;
-  const product = await fetchProductBySlug(slug);
-
-  if (!product || product.status !== "PUBLISHED") {
-    notFound();
-  }
 
   return (
     <RootShell>
-      <ProductDetailView product={product} />
+      <ProductDetailLoader slug={slug} />
     </RootShell>
   );
 }

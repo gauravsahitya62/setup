@@ -13,6 +13,7 @@ import com.flowset.exceptions.UnauthorizedException;
 import com.flowset.marketplace.inventory.dto.AvailabilityResponse;
 import com.flowset.marketplace.inventory.dto.AvailabilityUpdateRequest;
 import com.flowset.marketplace.inventory.dto.CalendarDayResponse;
+import com.flowset.marketplace.inventory.dto.CalendarOccupancyResponse;
 import com.flowset.marketplace.inventory.dto.InventoryAdjustRequest;
 import com.flowset.marketplace.inventory.dto.InventoryMovementResponse;
 import com.flowset.marketplace.inventory.dto.InventoryResponse;
@@ -22,24 +23,38 @@ import com.flowset.marketplace.inventory.dto.VendorInventoryItemResponse;
 import com.flowset.marketplace.inventory.dto.VendorInventoryOverviewResponse;
 import com.flowset.marketplace.inventory.entity.AvailabilityCalendarEntity;
 import com.flowset.marketplace.inventory.entity.InventoryEntity;
+import com.flowset.marketplace.inventory.entity.InventoryReservationEntity;
 import com.flowset.marketplace.inventory.entity.InventoryMovementEntity;
 import com.flowset.marketplace.inventory.mapper.InventoryMapper;
 import com.flowset.marketplace.inventory.repository.AvailabilityCalendarRepository;
 import com.flowset.marketplace.inventory.repository.InventoryMovementRepository;
 import com.flowset.marketplace.inventory.repository.InventoryRepository;
 import com.flowset.marketplace.inventory.service.InventoryAvailabilityService.Occupancy;
+import com.flowset.marketplace.inventory.service.InventoryAvailabilityService.OccupancyEntries;
 import com.flowset.marketplace.product.entity.ProductEntity;
 import com.flowset.marketplace.product.entity.ProductImageEntity;
 import com.flowset.marketplace.product.entity.ProductVariantEntity;
 import com.flowset.marketplace.product.repository.ProductVariantRepository;
+import com.flowset.orders.entity.OrderEntity;
+import com.flowset.orders.mapper.OrderMapper;
+import com.flowset.orders.repository.OrderRepository;
+import com.flowset.planner.projects.entity.ProjectEntity;
+import com.flowset.planner.projects.repository.ProjectRepository;
 import com.flowset.security.UserPrincipal;
+import com.flowset.users.entity.UserEntity;
+import com.flowset.users.repository.UserRepository;
 import com.flowset.vendor.entity.VendorEntity;
 import com.flowset.vendor.repository.VendorRepository;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
@@ -57,6 +72,9 @@ public class InventoryService {
     private final VendorRepository vendorRepository;
     private final InventoryMapper inventoryMapper;
     private final InventoryAvailabilityService availabilityService;
+    private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+    private final ProjectRepository projectRepository;
     private final AuditLogService auditLogService;
     private final InventoryProperties inventoryProperties;
     private final ApplicationEventPublisher eventPublisher;
@@ -69,6 +87,9 @@ public class InventoryService {
             VendorRepository vendorRepository,
             InventoryMapper inventoryMapper,
             InventoryAvailabilityService availabilityService,
+            OrderRepository orderRepository,
+            UserRepository userRepository,
+            ProjectRepository projectRepository,
             AuditLogService auditLogService,
             InventoryProperties inventoryProperties,
             ApplicationEventPublisher eventPublisher
@@ -80,6 +101,9 @@ public class InventoryService {
         this.vendorRepository = vendorRepository;
         this.inventoryMapper = inventoryMapper;
         this.availabilityService = availabilityService;
+        this.orderRepository = orderRepository;
+        this.userRepository = userRepository;
+        this.projectRepository = projectRepository;
         this.auditLogService = auditLogService;
         this.inventoryProperties = inventoryProperties;
         this.eventPublisher = eventPublisher;
@@ -308,6 +332,154 @@ public class InventoryService {
             assertCanView(inventory.getVariant());
         }
         return availabilityService.calendarForInventories(inventories, startDate, endDate);
+    }
+
+    @Transactional(readOnly = true)
+    public CalendarOccupancyResponse vendorOccupancy(
+            UUID variantId,
+            UUID productId,
+            UUID categoryId,
+            LocalDate date
+    ) {
+        UUID vendorId = resolveVendorScope();
+        List<InventoryEntity> inventories = inventoryRepository.findForVendor(
+                vendorId, productId, categoryId, variantId);
+        for (InventoryEntity inventory : inventories) {
+            assertCanView(inventory.getVariant());
+        }
+
+        List<CalendarDayResponse> days = availabilityService.calendarForInventories(inventories, date, date);
+        CalendarDayResponse day = days.isEmpty()
+                ? new CalendarDayResponse(date, variantId, null, null, 0, 0, 0, 0, 0, 0)
+                : days.getFirst();
+
+        OccupancyEntries entries = availabilityService.occupancyEntries(inventories, date);
+        Map<UUID, OrderEntity> ordersByBooking = loadOrders(entries);
+        Map<UUID, UserEntity> planners = userRepository
+                .findAllById(ordersByBooking.values().stream().map(OrderEntity::getPlannerId).toList())
+                .stream()
+                .collect(Collectors.toMap(UserEntity::getId, user -> user));
+        Map<UUID, ProjectEntity> projects = projectRepository
+                .findAllById(ordersByBooking.values().stream().map(OrderEntity::getProjectId).toList())
+                .stream()
+                .collect(Collectors.toMap(ProjectEntity::getId, project -> project));
+
+        Map<String, List<com.flowset.marketplace.inventory.entity.InventoryReservationEntity>> grouped =
+                new LinkedHashMap<>();
+        for (var reservation : entries.reservations()) {
+            String key;
+            OrderEntity order = reservation.getBookingRequestId() == null
+                    ? null
+                    : ordersByBooking.get(reservation.getBookingRequestId());
+            if (order != null) {
+                key = "order:" + order.getId();
+            } else if (reservation.getBookingRequestId() != null) {
+                key = "booking:" + reservation.getBookingRequestId();
+            } else {
+                key = "reservation:" + reservation.getId();
+            }
+            grouped.computeIfAbsent(key, ignored -> new ArrayList<>()).add(reservation);
+        }
+
+        List<CalendarOccupancyResponse.Booking> bookings = new ArrayList<>();
+        for (List<com.flowset.marketplace.inventory.entity.InventoryReservationEntity> group : grouped.values()) {
+            var first = group.getFirst();
+            OrderEntity order = first.getBookingRequestId() == null
+                    ? null
+                    : ordersByBooking.get(first.getBookingRequestId());
+            List<CalendarOccupancyResponse.Line> items = group.stream()
+                    .sorted(Comparator.comparing((com.flowset.marketplace.inventory.entity.InventoryReservationEntity r) ->
+                            productName(r.getVariant())).thenComparing(r -> variantName(r.getVariant())))
+                    .map(reservation -> new CalendarOccupancyResponse.Line(
+                            reservation.getVariant().getId(),
+                            productName(reservation.getVariant()),
+                            variantName(reservation.getVariant()),
+                            reservation.getVariant().getSku(),
+                            reservation.getQuantity()))
+                    .toList();
+            int quantity = group.stream()
+                    .mapToInt(com.flowset.marketplace.inventory.entity.InventoryReservationEntity::getQuantity)
+                    .sum();
+            LocalDate start = group.stream()
+                    .map(com.flowset.marketplace.inventory.entity.InventoryReservationEntity::getStartDate)
+                    .min(LocalDate::compareTo)
+                    .orElse(first.getStartDate());
+            LocalDate end = group.stream()
+                    .map(com.flowset.marketplace.inventory.entity.InventoryReservationEntity::getEndDate)
+                    .max(LocalDate::compareTo)
+                    .orElse(first.getEndDate());
+            bookings.add(new CalendarOccupancyResponse.Booking(
+                    order == null ? null : order.getId(),
+                    order == null ? null : order.getOrderNumber(),
+                    order == null ? null : order.getStatus(),
+                    first.getBookingRequestId(),
+                    order == null ? null : OrderMapper.displayName(planners.get(order.getPlannerId())),
+                    order == null || projects.get(order.getProjectId()) == null
+                            ? null
+                            : projects.get(order.getProjectId()).getName(),
+                    order == null ? start : order.getRentalStartDate(),
+                    order == null ? end : order.getRentalEndDate(),
+                    order == null ? null : order.getTotalAmount(),
+                    order == null ? null : order.getCurrency(),
+                    quantity,
+                    items));
+        }
+        bookings.sort(Comparator
+                .comparing((CalendarOccupancyResponse.Booking booking) ->
+                        booking.orderNumber() == null ? "zzz" : booking.orderNumber())
+                .thenComparing(CalendarOccupancyResponse.Booking::rentalStartDate));
+
+        List<CalendarOccupancyResponse.Block> blocks = entries.blocks().stream()
+                .sorted(Comparator.comparing(block -> productName(block.getVariant())))
+                .map(block -> new CalendarOccupancyResponse.Block(
+                        block.getId(),
+                        block.getVariant().getId(),
+                        productName(block.getVariant()),
+                        variantName(block.getVariant()),
+                        block.getQuantity(),
+                        block.getStartDate(),
+                        block.getEndDate(),
+                        block.getReason(),
+                        block.getNotes()))
+                .toList();
+
+        return new CalendarOccupancyResponse(
+                date,
+                day.totalQuantity(),
+                day.reservedQuantity(),
+                day.maintenanceQuantity(),
+                day.damagedQuantity(),
+                day.blockedQuantity(),
+                day.availableQuantity(),
+                bookings,
+                blocks);
+    }
+
+    private Map<UUID, OrderEntity> loadOrders(OccupancyEntries entries) {
+        List<UUID> bookingIds = entries.reservations().stream()
+                .map(com.flowset.marketplace.inventory.entity.InventoryReservationEntity::getBookingRequestId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (bookingIds.isEmpty()) {
+            return Map.of();
+        }
+        return orderRepository.findByBookingRequestIdIn(bookingIds).stream()
+                .collect(Collectors.toMap(OrderEntity::getBookingRequestId, order -> order));
+    }
+
+    private static String productName(ProductVariantEntity variant) {
+        if (variant == null || variant.getProduct() == null || variant.getProduct().getName() == null) {
+            return "Product";
+        }
+        return variant.getProduct().getName();
+    }
+
+    private static String variantName(ProductVariantEntity variant) {
+        if (variant == null || variant.getVariantName() == null || variant.getVariantName().isBlank()) {
+            return "Variant";
+        }
+        return variant.getVariantName();
     }
 
     @Transactional(readOnly = true)

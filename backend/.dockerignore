@@ -1,0 +1,9 @@
+target/
+uploads/
+uploads-test/
+*.iml
+.idea/
+.classpath
+.project
+.settings/
+*.log

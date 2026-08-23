@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -102,12 +101,21 @@ class VendorIntegrationTest {
                 "file",
                 "logo.png",
                 "image/png",
-                "fake-png-bytes".getBytes(StandardCharsets.UTF_8));
-        mockMvc.perform(multipart("/api/v1/vendors/{id}/logo", vendorId)
+                new byte[] {
+                    (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0
+                });
+        MvcResult logoResult = mockMvc.perform(multipart("/api/v1/vendors/{id}/logo", vendorId)
                         .file(logo)
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.logoUrl").isNotEmpty());
+                .andExpect(jsonPath("$.logoUrl").isNotEmpty())
+                .andReturn();
+        String logoUrl = objectMapper.readTree(logoResult.getResponse().getContentAsString()).path("logoUrl").asText();
+        String filesPath = logoUrl.substring(logoUrl.indexOf("/api/v1/files"));
+        mockMvc.perform(get(filesPath).header("X-Request-ID", "logo-read-1"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/files/vendors/{id}/documents/gst.pdf", vendorId))
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(get("/api/v1/vendors/slug/{slug}", slug))
                 .andExpect(status().isOk())

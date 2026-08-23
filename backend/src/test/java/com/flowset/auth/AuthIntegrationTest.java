@@ -44,6 +44,15 @@ class AuthIntegrationTest {
     private PasswordResetTokenRepository passwordResetTokenRepository;
 
     @Test
+    void healthEndpointsArePublicAndSafe() throws Exception {
+        mockMvc.perform(get("/actuator/health/liveness"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/actuator/health/readiness"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/actuator/env")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void registerPlannerLoginMeAndRefresh() throws Exception {
         String email = "planner.auth@example.com";
 

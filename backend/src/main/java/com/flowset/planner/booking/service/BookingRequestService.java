@@ -83,7 +83,7 @@ import org.springframework.util.StringUtils;
 public class BookingRequestService {
 
     static final String INSUFFICIENT_AVAILABILITY_TEMPLATE =
-            "Only %d units are currently available for the selected dates.";
+            "%s: only %d of %d requested units are available for the selected dates.";
     static final String INVENTORY_GONE = "Inventory is no longer available for the requested dates.";
     static final String DUPLICATE_PENDING =
             "A pending booking request already exists for this vendor, products, and dates.";
@@ -592,8 +592,7 @@ public class BookingRequestService {
             AvailabilityCheckResponse check = availabilityService.checkAvailability(
                     line.variant().getId(), start, end, line.quantity());
             if (!check.available() || check.availableQuantity() < line.quantity()) {
-                throw new ConflictException(
-                        INSUFFICIENT_AVAILABILITY_TEMPLATE.formatted(check.availableQuantity()));
+                throw new ConflictException(insufficientAvailabilityMessage(line, check.availableQuantity()));
             }
         }
     }
@@ -773,6 +772,13 @@ public class BookingRequestService {
 
     private VendorEntity vendorOf(BookingRequestEntity request) {
         return vendorRepository.findActiveById(request.getVendorId()).orElse(null);
+    }
+
+    private static String insufficientAvailabilityMessage(ResolvedLine line, int available) {
+        String name = line.variant().getProduct().getName();
+        String variantName = line.variant().getVariantName();
+        String label = StringUtils.hasText(variantName) ? name + " (" + variantName + ")" : name;
+        return INSUFFICIENT_AVAILABILITY_TEMPLATE.formatted(label, available, line.quantity());
     }
 
     private static String itemSummaryFromLines(List<ResolvedLine> lines) {

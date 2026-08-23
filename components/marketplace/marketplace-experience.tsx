@@ -23,12 +23,14 @@ import {
   flattenCategorySlugMap,
   mapProductSummaryToListing,
   marketplaceApi,
+  vendorApi,
   type CategoryDto,
 } from "@/services";
 import type { MarketplaceFilters, MarketplaceListing } from "@/types";
 
 export function MarketplaceExperience({ projectId }: { projectId?: string }) {
   const searchParams = useSearchParams();
+  const vendorIdFromUrl = searchParams.get("vendorId") ?? undefined;
   const [filters, setFilters] = React.useState<MarketplaceFilters>(() => {
     const q = searchParams.get("q") ?? "";
     const location = searchParams.get("location") ?? "";
@@ -91,9 +93,36 @@ export function MarketplaceExperience({ projectId }: { projectId?: string }) {
           ? categorySlugToId.get(activeFilters.categorySlug)
           : undefined;
 
+      const query = activeFilters.query.trim();
+      let vendorId = vendorIdFromUrl;
+      let keyword = query || undefined;
+
+      if (!vendorId && query) {
+        try {
+          const vendors = await vendorApi.list({ companyName: query, page: 0, size: 20 });
+          const needle = query.toLowerCase();
+          const match = vendors.content.find(
+            (vendor) =>
+              vendor.companyName.toLowerCase() === needle ||
+              vendor.companyName.toLowerCase().includes(needle) ||
+              vendor.slug.toLowerCase().includes(needle.replace(/\s+/g, "-"))
+          );
+          if (match) {
+            vendorId = match.id;
+          }
+        } catch {
+          // Continue with product keyword search if vendor lookup fails.
+        }
+      }
+
+      if (vendorId) {
+        keyword = undefined;
+      }
+
       return marketplaceApi.search(
         {
-          keyword: activeFilters.query.trim() || undefined,
+          keyword,
+          vendorId,
           categoryId,
           city: activeFilters.city !== "all" ? activeFilters.city : undefined,
           minPrice:
@@ -112,7 +141,7 @@ export function MarketplaceExperience({ projectId }: { projectId?: string }) {
         signal
       );
     },
-    [activeFilters, categorySlugToId]
+    [activeFilters, categorySlugToId, vendorIdFromUrl]
   );
 
   // Reset + load page 0 whenever filters change (categories must be resolved first

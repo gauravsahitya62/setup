@@ -1,16 +1,17 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/shared/modal";
-import { ROUTES } from "@/constants";
+import { ProjectPickerFields } from "@/components/planner/project-picker-fields";
+import { usePlannerProjectOptions } from "@/hooks/use-planner-project-options";
+import { track } from "@/lib/analytics";
 import { useAuth } from "@/providers";
-import { ApiClientError, marketplaceApi, projectApi, mapProjectSummary } from "@/services";
+import { ApiClientError, marketplaceApi, projectApi } from "@/services";
 import type { MarketplaceListing } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -32,49 +33,71 @@ export function AddToProjectDialog({
   projectId,
 }: AddToProjectDialogProps) {
   const { isAuthenticated, role } = useAuth();
-  const [projects, setProjects] = React.useState<{ id: string; name: string }[]>([]);
+  const {
+    projects,
+    loading: projectsLoading,
+    error: projectsError,
+    canUse,
+    isAuthenticated: signedIn,
+    reload,
+    addProject,
+  } = usePlannerProjectOptions(open);
   const [selectedId, setSelectedId] = React.useState(projectId ?? "");
   const [selectedVariant, setSelectedVariant] = React.useState(variantId ?? "");
   const [variants, setVariants] = React.useState<{ id: string; variantName: string }[]>([]);
-  const [loading, setLoading] = React.useState(false);
+  const [variantsLoading, setVariantsLoading] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
 
   React.useEffect(() => {
+    if (projectId) {
+      setSelectedId(projectId);
+      return;
+    }
+    if (selectedId && projects.some((project) => project.id === selectedId)) return;
+    setSelectedId(projects[0]?.id ?? "");
+  }, [projectId, projects, selectedId]);
+
+  React.useEffect(() => {
     if (!open || !listing) return;
-    const current = listing;
+    if (variantId) {
+      setSelectedVariant(variantId);
+      setVariants([]);
+      return;
+    }
+
+    const productId = listing.id;
+    const slug = listing.slug;
     let cancelled = false;
-    async function load() {
-      setLoading(true);
+
+    async function loadVariants() {
+      setVariantsLoading(true);
       try {
-        if (role === "planner" && isAuthenticated) {
-          const page = await projectApi.list({ size: 50, sort: "updatedAt", direction: "desc" });
-          if (!cancelled) {
-            const mapped = page.content.map(mapProjectSummary);
-            setProjects(mapped.map((project) => ({ id: project.id, name: project.name })));
-            setSelectedId(projectId || mapped[0]?.id || "");
-          }
-        }
-        if (!variantId) {
-          const product = await marketplaceApi.products.getBySlug(current.slug);
-          if (!cancelled) {
-            const active = product.variants.filter((item) => item.status === "ACTIVE");
-            setVariants(active.map((item) => ({ id: item.id, variantName: item.variantName })));
-            setSelectedVariant(active[0]?.id ?? "");
-          }
-        } else {
-          setSelectedVariant(variantId);
-        }
+        const product = slug
+          ? await marketplaceApi.products
+              .getBySlug(slug)
+              .catch(() => marketplaceApi.products.getById(productId))
+          : await marketplaceApi.products.getById(productId);
+        if (cancelled) return;
+        const active = (product.variants ?? []).filter((item) => item.status !== "INACTIVE");
+        const options = active.length > 0 ? active : await marketplaceApi.variants.list(productId);
+        if (cancelled) return;
+        setVariants(options.map((item) => ({ id: item.id, variantName: item.variantName })));
+        setSelectedVariant(options[0]?.id ?? "");
       } catch {
-        if (!cancelled) setProjects([]);
+        if (!cancelled) {
+          setVariants([]);
+          setSelectedVariant("");
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setVariantsLoading(false);
       }
     }
-    void load();
+
+    void loadVariants();
     return () => {
       cancelled = true;
     };
-  }, [open, listing, role, isAuthenticated, projectId, variantId]);
+  }, [open, listing, variantId]);
 
   if (!listing) return null;
 
@@ -85,7 +108,7 @@ export function AddToProjectDialog({
       return;
     }
     if (!selectedId) {
-      toast.error("Create a project first.");
+      toast.error("Create or choose a project first.");
       return;
     }
     if (!selectedVariant) {
@@ -95,6 +118,7 @@ export function AddToProjectDialog({
     setSubmitting(true);
     try {
       await projectApi.products.add(selectedId, { variantId: selectedVariant, quantity });
+      track("product_added_to_project", { quantity });
       const project = projects.find((item) => item.id === selectedId);
       toast.success(`Added to ${project?.name ?? "project"}`, {
         description: `${listing.name} · ${formatCurrency(listing.dailyRate, listing.currency)}/day — inventory is not reserved.`,
@@ -106,6 +130,8 @@ export function AddToProjectDialog({
       setSubmitting(false);
     }
   };
+
+  const loading = projectsLoading || variantsLoading;
 
   return (
     <Modal
@@ -127,7 +153,7 @@ export function AddToProjectDialog({
             type="submit"
             form="add-to-project"
             className="rounded-xl"
-            disabled={submitting || loading}
+            disabled={submitting || loading || !selectedId}
           >
             {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
             Add to project
@@ -143,73 +169,36 @@ export function AddToProjectDialog({
           </p>
         </div>
 
-        {loading ? (
-          <p className="text-muted-foreground text-sm">Loading your projects…</p>
-        ) : projects.length === 0 ? (
-          <div className="border-border/80 space-y-3 rounded-xl border border-dashed p-4 text-sm">
-            <p className="font-medium">Create your first project</p>
-            <p className="text-muted-foreground">
-              Products are shortlisted onto a project. Create one to start planning this event.
-            </p>
-            <Button className="rounded-xl" asChild>
-              <Link href={ROUTES.planner.projectNew}>Create project</Link>
-            </Button>
-          </div>
-        ) : (
-          <>
-            {!projectId ? (
-              <div className="space-y-2">
-                <Label htmlFor="project-select">Add to</Label>
-                <select
-                  id="project-select"
-                  value={selectedId}
-                  onChange={(event) => setSelectedId(event.target.value)}
-                  className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 h-11 w-full rounded-xl border px-3 text-sm outline-none focus-visible:ring-3"
-                >
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-muted-foreground text-xs">
-                  <Link
-                    href={ROUTES.planner.projectNew}
-                    className="underline-offset-4 hover:underline"
-                  >
-                    Create new project
-                  </Link>
-                </p>
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                Adding to{" "}
-                <span className="text-foreground font-medium">
-                  {projects.find((item) => item.id === selectedId)?.name ?? "this project"}
-                </span>
-                .
-              </p>
-            )}
+        <ProjectPickerFields
+          projects={projects}
+          loading={projectsLoading}
+          error={projectsError}
+          canUse={canUse}
+          isAuthenticated={signedIn}
+          lockedProjectId={projectId}
+          selectedId={selectedId}
+          onSelectedIdChange={setSelectedId}
+          onCreated={addProject}
+          onRetry={() => void reload()}
+        />
 
-            {!variantId && variants.length > 1 ? (
-              <div className="space-y-2">
-                <Label htmlFor="variant-select">Variant</Label>
-                <select
-                  id="variant-select"
-                  value={selectedVariant}
-                  onChange={(event) => setSelectedVariant(event.target.value)}
-                  className="border-input bg-background h-11 w-full rounded-xl border px-3 text-sm outline-none"
-                >
-                  {variants.map((variant) => (
-                    <option key={variant.id} value={variant.id}>
-                      {variant.variantName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
-          </>
-        )}
+        {!variantId && variants.length > 1 ? (
+          <div className="space-y-2">
+            <Label htmlFor="variant-select">Variant</Label>
+            <select
+              id="variant-select"
+              value={selectedVariant}
+              onChange={(event) => setSelectedVariant(event.target.value)}
+              className="border-input bg-background h-11 w-full rounded-xl border px-3 text-sm outline-none"
+            >
+              {variants.map((variant) => (
+                <option key={variant.id} value={variant.id}>
+                  {variant.variantName}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
       </form>
     </Modal>
   );

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Modal } from "@/components/shared/modal";
 import { ROUTES } from "@/constants";
+import { track } from "@/lib/analytics";
 import { ApiClientError, projectApi } from "@/services";
 
 interface QuickAddProjectDialogProps {
@@ -53,6 +54,7 @@ export function QuickAddProjectDialog({
         description: notes || undefined,
         status: "DRAFT",
       });
+      track("project_created", { status: "DRAFT" });
       toast.success(`“${created.name}” created`);
       reset();
       onOpenChange(false);

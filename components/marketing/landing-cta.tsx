@@ -5,8 +5,14 @@ import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/constants";
+import { accountNavForRole } from "@/lib/auth/account-nav";
+import { useAuth } from "@/providers";
 
 export function LandingCta() {
+  const { isAuthenticated, isLoading, role } = useAuth();
+  const nav = accountNavForRole(role);
+  const primaryHref = !isLoading && isAuthenticated ? nav.dashboardHref : ROUTES.auth.signUp;
+  const primaryLabel = !isLoading && isAuthenticated ? nav.dashboardLabel : "Start Planning";
   return (
     <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 sm:pb-24 lg:px-8">
       <motion.div
@@ -29,7 +35,7 @@ export function LandingCta() {
               size="lg"
               className="h-12 rounded-xl bg-white px-6 text-base text-neutral-950 hover:bg-white/90"
             >
-              <Link href={ROUTES.auth.signUp}>Start Planning</Link>
+              <Link href={primaryHref}>{primaryLabel}</Link>
             </Button>
             <Button
               asChild

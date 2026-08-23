@@ -51,7 +51,10 @@ public final class ProductSpecifications {
         return (root, query, cb) -> cb.or(
                 cb.like(cb.lower(root.get("name")), pattern),
                 cb.like(cb.lower(cb.coalesce(root.get("shortDescription"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("description"), "")), pattern));
+                cb.like(cb.lower(cb.coalesce(root.get("description"), "")), pattern),
+                cb.like(cb.lower(root.get("vendor").get("companyName")), pattern),
+                cb.like(cb.lower(cb.coalesce(root.get("vendor").get("slug"), "")), pattern),
+                cb.like(cb.lower(cb.coalesce(root.get("category").get("name"), "")), pattern));
     }
 
     public static Specification<ProductEntity> categoryId(UUID categoryId) {

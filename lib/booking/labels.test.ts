@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { BOOKING_STATUS_LABELS, bookingErrorMessage } from "@/lib/booking/labels";
+import {
+  BOOKING_STATUS_LABELS,
+  bookingErrorMessage,
+  formatAvailabilityHint,
+} from "@/lib/booking/labels";
 
 describe("booking labels", () => {
   it("labels API statuses", () => {
@@ -18,11 +22,26 @@ describe("booking labels", () => {
     expect(
       bookingErrorMessage({
         status: 409,
-        message: "Only 70 units are currently available for the selected dates.",
+        message:
+          "Royal Gold Chair (Gold): only 70 of 100 requested units are available for the selected dates.",
       })
-    ).toContain("Only 70 units");
+    ).toContain("Royal Gold Chair");
     expect(bookingErrorMessage({ status: 404, message: "hidden" })).toBe(
       "Booking request not found"
+    );
+  });
+
+  it("names the product when stock is short", () => {
+    expect(
+      formatAvailabilityHint({
+        productName: "Clear Marquee Tent",
+        variantName: "12x12",
+        available: 4,
+        requested: 5,
+        datesKnown: true,
+      })
+    ).toBe(
+      "Clear Marquee Tent (12x12): only 4 of 5 requested units are available for the selected dates."
     );
   });
 });

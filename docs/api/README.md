@@ -2,7 +2,7 @@
 
 Base path: `/api/v1`
 
-OpenAPI/Swagger: `/swagger-ui.html` (when the API is running).
+OpenAPI/Swagger: `/swagger-ui.html` (development only; disabled on staging/prod profiles). Send `X-Request-ID` to correlate client and API logs.
 
 ## Marketplace
 

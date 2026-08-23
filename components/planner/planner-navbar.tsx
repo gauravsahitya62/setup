@@ -18,7 +18,6 @@ import { SearchBar } from "@/components/shared/search-bar";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { NotificationCenter } from "@/components/notifications/notification-center";
 import { QuickAddProjectDialog } from "@/components/planner/quick-add-project-dialog";
-import { PLANNER_USER } from "@/constants/planner";
 import { ROUTES } from "@/constants";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers";
@@ -30,9 +29,11 @@ interface PlannerNavbarProps {
 
 export function PlannerNavbar({ className }: PlannerNavbarProps) {
   const { setSidebarOpen } = useUIStore();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [addOpen, setAddOpen] = React.useState(false);
-  const initials = `${PLANNER_USER.firstName.charAt(0)}${PLANNER_USER.lastName.charAt(0)}`;
+  const firstName = user?.firstName ?? "Planner";
+  const lastName = user?.lastName ?? "";
+  const initials = `${firstName.charAt(0)}${lastName.charAt(0) || "P"}`;
 
   return (
     <>
@@ -79,22 +80,20 @@ export function PlannerNavbar({ className }: PlannerNavbarProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2 rounded-xl px-2">
                   <Avatar size="sm">
-                    <AvatarImage src={PLANNER_USER.avatarUrl} alt={PLANNER_USER.firstName} />
+                    <AvatarImage src={user?.avatarUrl} alt={firstName} />
                     <AvatarFallback>{initials}</AvatarFallback>
                   </Avatar>
-                  <span className="hidden text-sm font-medium lg:inline">
-                    {PLANNER_USER.firstName}
-                  </span>
+                  <span className="hidden text-sm font-medium lg:inline">{firstName}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col gap-0.5">
                     <span>
-                      {PLANNER_USER.firstName} {PLANNER_USER.lastName}
+                      {firstName} {lastName}
                     </span>
                     <span className="text-muted-foreground text-xs font-normal">
-                      {PLANNER_USER.companyName}
+                      {user?.companyName ?? user?.email ?? "Planner"}
                     </span>
                   </div>
                 </DropdownMenuLabel>

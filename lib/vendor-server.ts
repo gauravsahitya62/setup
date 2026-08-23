@@ -1,8 +1,13 @@
-import { env } from "@/lib/env";
+import { serverApiBaseUrl } from "@/lib/api-base";
+import {
+  mapProductSummaryToListing,
+  type PageResponse,
+  type ProductSummaryDto,
+} from "@/services/marketplace-api";
 import { mapVendorDtoToProfile, type VendorDto, type VendorPageDto } from "@/services/vendor-api";
-import type { VendorProfile } from "@/types";
+import type { MarketplaceListing, VendorProfile } from "@/types";
 
-const apiBase = env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "");
+const apiBase = serverApiBaseUrl();
 
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
@@ -42,4 +47,14 @@ export async function fetchVendorProfileBySlug(slug: string): Promise<VendorProf
   const dto = await fetchJson<VendorDto>(`/vendors/slug/${encodeURIComponent(slug)}`);
   if (!dto) return null;
   return mapVendorDtoToProfile(dto);
+}
+
+export async function fetchVendorPublishedListings(
+  vendorId: string
+): Promise<MarketplaceListing[]> {
+  const page = await fetchJson<PageResponse<ProductSummaryDto>>(
+    `/vendors/${encodeURIComponent(vendorId)}/products?page=0&size=50`
+  );
+  if (!page) return [];
+  return page.content.map(mapProductSummaryToListing);
 }

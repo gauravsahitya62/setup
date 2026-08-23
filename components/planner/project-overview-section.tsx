@@ -120,9 +120,25 @@ export function ProjectOverviewSection({
               </ul>
             </div>
             <div className="flex flex-wrap gap-2 pt-2">
-              <Button size="sm" className="rounded-xl" onClick={onAddProducts}>
-                Add products
-              </Button>
+              {(project.productCount ?? 0) > 0 ? (
+                <>
+                  <Button size="sm" className="rounded-xl" asChild>
+                    <Link href={ROUTES.planner.projectBookingNew(project.id)}>Request booking</Link>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl"
+                    onClick={onAddProducts}
+                  >
+                    Add products
+                  </Button>
+                </>
+              ) : (
+                <Button size="sm" className="rounded-xl" onClick={onAddProducts}>
+                  Add products
+                </Button>
+              )}
               <Button size="sm" variant="outline" className="rounded-xl" asChild>
                 <Link href={ROUTES.vendors}>Save vendors</Link>
               </Button>

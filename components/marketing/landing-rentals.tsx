@@ -23,7 +23,7 @@ function toProduct(summary: ProductSummaryDto): Product {
     imageUrl: summary.featuredImage ?? undefined,
     categoryId: summary.categoryId,
     dailyRate: Number(summary.pricePerDay ?? 0),
-    currency: "USD",
+    currency: "INR",
     available: summary.available,
     createdAt: now,
     updatedAt: now,

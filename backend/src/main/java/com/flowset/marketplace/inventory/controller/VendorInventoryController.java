@@ -1,6 +1,7 @@
 package com.flowset.marketplace.inventory.controller;
 
 import com.flowset.marketplace.inventory.dto.CalendarDayResponse;
+import com.flowset.marketplace.inventory.dto.CalendarOccupancyResponse;
 import com.flowset.marketplace.inventory.dto.InventoryAdjustRequest;
 import com.flowset.marketplace.inventory.dto.InventoryBlockRequest;
 import com.flowset.marketplace.inventory.dto.InventoryBlockResponse;
@@ -217,5 +218,21 @@ public class VendorInventoryController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
     ) {
         return inventoryService.vendorCalendar(variant, product, category, startDate, endDate);
+    }
+
+    @GetMapping("/calendar/occupancy")
+    @Operation(summary = "Orders and blocks occupying a calendar date")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Bookings and blocks for the selected date"),
+            @ApiResponse(responseCode = "400", description = "Invalid date"),
+            @ApiResponse(responseCode = "403", description = "Not a vendor or admin")
+    })
+    public CalendarOccupancyResponse occupancy(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) UUID variant,
+            @RequestParam(required = false) UUID product,
+            @RequestParam(required = false) UUID category
+    ) {
+        return inventoryService.vendorOccupancy(variant, product, category, date);
     }
 }

@@ -23,14 +23,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { ROUTES } from "@/constants";
+import { formatEstimatedRental, toMoney } from "@/lib/booking/pricing";
+import { formatOrderDate, ORDER_STATUSES, type OrderStatus } from "@/lib/orders/labels";
 import { cn } from "@/lib/utils";
 import {
   ApiClientError,
   marketplaceApi,
   type CalendarDayDto,
+  type CalendarOccupancyDto,
   type VendorInventoryItemDto,
 } from "@/services";
+
+const BLOCK_REASON_LABELS: Record<string, string> = {
+  MAINTENANCE: "Maintenance",
+  PRIVATE_BOOKING: "Private booking",
+  DAMAGED: "Damaged",
+  VENDOR_UNAVAILABLE: "Vendor unavailable",
+  OTHER: "Blocked",
+};
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -62,6 +74,8 @@ export function VendorAvailabilityCalendar({
   const [items, setItems] = React.useState<VendorInventoryItemDto[]>([]);
   const [days, setDays] = React.useState<CalendarDayDto[]>([]);
   const [selected, setSelected] = React.useState<CalendarDayDto | null>(null);
+  const [occupancy, setOccupancy] = React.useState<CalendarOccupancyDto | null>(null);
+  const [occupancyLoading, setOccupancyLoading] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [customStart, setCustomStart] = React.useState("");
   const [customEnd, setCustomEnd] = React.useState("");
@@ -103,6 +117,7 @@ export function VendorAvailabilityCalendar({
         if (!cancelled) {
           setDays(data);
           setSelected(null);
+          setOccupancy(null);
         }
       })
       .catch((error) => {
@@ -115,6 +130,33 @@ export function VendorAvailabilityCalendar({
       cancelled = true;
     };
   }, [variantId, productId, range.start, range.end]);
+
+  React.useEffect(() => {
+    if (!selected) {
+      setOccupancy(null);
+      return;
+    }
+    let cancelled = false;
+    setOccupancyLoading(true);
+    marketplaceApi.vendorInventory
+      .occupancy({
+        date: selected.date,
+        variant: variantId === "all" ? undefined : variantId,
+        product: productId === "all" ? undefined : productId,
+      })
+      .then((data) => {
+        if (!cancelled) setOccupancy(data);
+      })
+      .catch(() => {
+        if (!cancelled) setOccupancy(null);
+      })
+      .finally(() => {
+        if (!cancelled) setOccupancyLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected, variantId, productId]);
 
   const byDate = React.useMemo(() => new Map(days.map((d) => [d.date, d])), [days]);
   const products = React.useMemo(() => {
@@ -137,7 +179,8 @@ export function VendorAvailabilityCalendar({
       <CardHeader>
         <CardTitle className="text-base">Availability</CardTitle>
         <CardDescription>
-          Inclusive rental dates. Numbers are available units, not just color.
+          Inclusive rental dates. Numbers are available units. Click a booked date to see its
+          orders.
         </CardDescription>
         {!compact ? (
           <CardAction>
@@ -302,7 +345,20 @@ export function VendorAvailabilityCalendar({
                 key={key}
                 type="button"
                 title={availabilityLabel(day)}
-                onClick={() => setSelected(day ?? null)}
+                aria-pressed={selected?.date === key}
+                onClick={() =>
+                  setSelected(
+                    day ?? {
+                      date: key,
+                      totalQuantity: 0,
+                      reservedQuantity: 0,
+                      maintenanceQuantity: 0,
+                      damagedQuantity: 0,
+                      blockedQuantity: 0,
+                      availableQuantity: 0,
+                    }
+                  )
+                }
                 className={cn(
                   "flex aspect-square flex-col items-center justify-center rounded-lg text-xs ring-1 transition-transform ring-inset hover:scale-[1.04]",
                   state === "open" &&
@@ -310,7 +366,8 @@ export function VendorAvailabilityCalendar({
                   state === "limited" &&
                     "bg-amber-500/15 text-amber-900 ring-amber-500/25 dark:text-amber-200",
                   state === "unavailable" && "bg-muted text-muted-foreground ring-border",
-                  state === "empty" && "bg-background text-muted-foreground ring-border/60"
+                  state === "empty" && "bg-background text-muted-foreground ring-border/60",
+                  selected?.date === key && "ring-foreground/40 ring-2"
                 )}
               >
                 <span className="font-medium tabular-nums">{date.getDate()}</span>
@@ -331,16 +388,99 @@ export function VendorAvailabilityCalendar({
           </Badge>
         </div>
         {selected ? (
-          <div className="border-border/70 bg-muted/20 rounded-xl border p-3 text-sm">
-            <p className="font-medium">{selected.date}</p>
-            <p className="text-muted-foreground mt-1">
-              Total {selected.totalQuantity} · Reserved {selected.reservedQuantity} · Maintenance{" "}
-              {selected.maintenanceQuantity} · Damaged {selected.damagedQuantity} · Blocked{" "}
-              {selected.blockedQuantity} ·{" "}
-              <span className="text-foreground">Available {selected.availableQuantity}</span>
-            </p>
+          <div className="border-border/70 bg-muted/20 space-y-3 rounded-xl border p-3 text-sm">
+            <div>
+              <p className="font-medium">{formatOrderDate(selected.date)}</p>
+              <p className="text-muted-foreground mt-1">
+                Total {selected.totalQuantity} · Reserved {selected.reservedQuantity} · Maintenance{" "}
+                {selected.maintenanceQuantity} · Damaged {selected.damagedQuantity} · Blocked{" "}
+                {selected.blockedQuantity} ·{" "}
+                <span className="text-foreground">Available {selected.availableQuantity}</span>
+              </p>
+            </div>
+            {occupancyLoading ? (
+              <p className="text-muted-foreground text-xs">Loading bookings for this date…</p>
+            ) : occupancy && occupancy.bookings.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs font-medium tracking-wide uppercase">
+                  Orders on this date ({occupancy.bookings.length})
+                </p>
+                <ul className="space-y-2">
+                  {occupancy.bookings.map((booking, index) => {
+                    const status = ORDER_STATUSES.includes(booking.orderStatus as OrderStatus)
+                      ? (booking.orderStatus as OrderStatus)
+                      : null;
+                    return (
+                      <li
+                        key={booking.orderId ?? booking.bookingRequestId ?? `reservation-${index}`}
+                        className="bg-background/80 rounded-lg border p-3"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="font-medium">
+                              {booking.orderNumber ?? "Inventory reservation"}
+                            </p>
+                            <p className="text-muted-foreground text-xs">
+                              {booking.plannerName ?? "Planner"}
+                              {booking.projectName ? ` · ${booking.projectName}` : ""}
+                            </p>
+                            <p className="text-muted-foreground text-xs">
+                              {formatOrderDate(booking.rentalStartDate)} –{" "}
+                              {formatOrderDate(booking.rentalEndDate)} · {booking.quantity} units
+                              {booking.totalAmount != null
+                                ? ` · ${formatEstimatedRental(toMoney(booking.totalAmount), booking.currency ?? "INR")}`
+                                : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {status ? <OrderStatusBadge status={status} /> : null}
+                            {booking.orderId ? (
+                              <Button variant="outline" size="sm" className="rounded-lg" asChild>
+                                <Link href={ROUTES.vendor.order(booking.orderId)}>Open order</Link>
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+                        <ul className="text-muted-foreground mt-2 space-y-1 text-xs">
+                          {booking.items.map((item) => (
+                            <li key={`${item.variantId}-${item.sku}`}>
+                              {item.quantity} × {item.productName}
+                              {item.variantName ? ` · ${item.variantName}` : ""}
+                              {item.sku ? ` (${item.sku})` : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-xs">
+                No orders occupy this date. Units may still be held by maintenance or blocks.
+              </p>
+            )}
+            {occupancy && occupancy.blocks.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs font-medium tracking-wide uppercase">Blocks</p>
+                <ul className="space-y-1 text-xs">
+                  {occupancy.blocks.map((block) => (
+                    <li key={block.id}>
+                      {block.quantity} × {block.productName}
+                      {block.variantName ? ` · ${block.variantName}` : ""} —{" "}
+                      {BLOCK_REASON_LABELS[block.reason] ?? block.reason}
+                      {block.notes ? ` (${block.notes})` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            Click a booked (amber) date to see which orders are holding units.
+          </p>
+        )}
       </CardContent>
     </Card>
   );

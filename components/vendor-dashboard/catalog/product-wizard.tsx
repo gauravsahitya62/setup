@@ -89,12 +89,15 @@ function Field({
   );
 }
 
-export function ProductWizard() {
+export function ProductWizard({ productId }: { productId?: string }) {
   const router = useRouter();
   const { vendor, loading: vendorLoading } = useMyVendor();
+  const isEditing = Boolean(productId);
 
   const [step, setStep] = React.useState(0);
   const [saving, setSaving] = React.useState(false);
+  const [loadingProduct, setLoadingProduct] = React.useState(isEditing);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
 
   const [categories, setCategories] = React.useState<CategoryDto[]>([]);
   const [basic, setBasic] = React.useState(emptyBasic);
@@ -123,6 +126,77 @@ export function ProductWizard() {
       cancelled = true;
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!productId) return;
+    let cancelled = false;
+
+    async function loadExisting() {
+      setLoadingProduct(true);
+      setLoadError(null);
+      try {
+        const dto = await marketplaceApi.products.getById(productId);
+        if (cancelled) return;
+        setProduct(dto);
+        setBasic({
+          name: dto.name ?? "",
+          slug: dto.slug ?? "",
+          shortDescription: dto.shortDescription ?? "",
+          description: dto.description ?? "",
+        });
+        setCategoryId(dto.categoryId ?? "");
+        setSubcategoryId(dto.subcategoryId ?? "");
+        setPricing({
+          pricePerDay:
+            dto.pricePerDay != null && dto.pricePerDay !== "" ? String(dto.pricePerDay) : "",
+          securityDeposit:
+            dto.securityDeposit != null && dto.securityDeposit !== ""
+              ? String(dto.securityDeposit)
+              : "",
+          minimumRentalDays: String(dto.minimumRentalDays ?? 1),
+          deliveryAvailable: Boolean(dto.deliveryAvailable),
+          setupAvailable: Boolean(dto.setupAvailable),
+          pickupAvailable: dto.pickupAvailable !== false,
+          featured: Boolean(dto.featured),
+        });
+        setImages(dto.images ?? []);
+        const list = dto.variants?.length
+          ? dto.variants
+          : await marketplaceApi.variants.list(dto.id);
+        if (cancelled) return;
+        setVariants(list);
+        const entries = await Promise.all(
+          list.map(async (variant) => {
+            try {
+              const inv = await marketplaceApi.inventory.get(variant.id);
+              return [variant.id, inv] as const;
+            } catch {
+              return null;
+            }
+          })
+        );
+        if (cancelled) return;
+        setInventories(
+          Object.fromEntries(
+            entries.filter((entry): entry is readonly [string, InventoryDto] => entry !== null)
+          )
+        );
+      } catch (error) {
+        if (!cancelled) {
+          setLoadError(
+            error instanceof ApiClientError ? error.message : "Could not load this product"
+          );
+        }
+      } finally {
+        if (!cancelled) setLoadingProduct(false);
+      }
+    }
+
+    void loadExisting();
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
   const progress = ((step + 1) / STEPS.length) * 100;
@@ -341,10 +415,11 @@ export function ProductWizard() {
       setStep(1);
       return;
     }
+    const keepPublished = isEditing && product?.status === "PUBLISHED";
     setSaving(true);
     try {
-      await ensureProduct("DRAFT");
-      toast.success("Draft saved");
+      await ensureProduct(keepPublished ? "PUBLISHED" : "DRAFT");
+      toast.success(keepPublished ? "Changes saved" : "Draft saved");
     } catch (error) {
       toast.error(error instanceof ApiClientError ? error.message : "Could not save draft");
     } finally {
@@ -358,10 +433,11 @@ export function ProductWizard() {
       setStep(5);
       return;
     }
+    const alreadyPublished = product?.status === "PUBLISHED";
     setSaving(true);
     try {
       await ensureProduct("PUBLISHED");
-      toast.success("Product published");
+      toast.success(alreadyPublished ? "Changes saved" : "Product published");
       router.push(ROUTES.vendor.catalog);
     } catch (error) {
       toast.error(error instanceof ApiClientError ? error.message : "Could not publish product");
@@ -370,10 +446,22 @@ export function ProductWizard() {
     }
   }
 
-  if (vendorLoading) {
+  if (vendorLoading || loadingProduct) {
     return (
       <div className="text-muted-foreground flex items-center justify-center py-24">
         <Loader2 className="size-5 animate-spin" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-xl space-y-4 py-16 text-center">
+        <h1 className="text-xl font-semibold">Could not open this product</h1>
+        <p className="text-muted-foreground text-sm">{loadError}</p>
+        <Button className="rounded-xl" asChild>
+          <Link href={ROUTES.vendor.catalog}>Back to inventory</Link>
+        </Button>
       </div>
     );
   }
@@ -401,7 +489,9 @@ export function ProductWizard() {
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">{STEPS[step]}</h1>
           <p className="text-muted-foreground text-sm">
-            Add a new rental product to your catalog. You can save a draft at any time.
+            {isEditing
+              ? "Update this rental product. You can save changes at any time."
+              : "Add a new rental product to your catalog. You can save a draft at any time."}
           </p>
         </div>
         <Button variant="outline" className="rounded-xl" asChild>
@@ -416,7 +506,10 @@ export function ProductWizard() {
             <Badge
               key={label}
               variant={index === step ? "default" : index < step ? "secondary" : "outline"}
-              className="rounded-md text-[0.7rem]"
+              className={`rounded-md text-[0.7rem] ${product ? "cursor-pointer" : ""}`}
+              onClick={() => {
+                if (product) setStep(index);
+              }}
             >
               {index < step ? <Check className="size-3" /> : null}
               {index + 1}. {label}
@@ -824,7 +917,7 @@ export function ProductWizard() {
             onClick={() => void saveDraft()}
           >
             {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-            Save as draft
+            {product?.status === "PUBLISHED" ? "Save changes" : "Save as draft"}
           </Button>
           {step < 6 ? (
             <Button
@@ -849,7 +942,7 @@ export function ProductWizard() {
               onClick={() => void publish()}
             >
               {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-              Publish product
+              {product?.status === "PUBLISHED" ? "Save & finish" : "Publish product"}
             </Button>
           )}
         </div>

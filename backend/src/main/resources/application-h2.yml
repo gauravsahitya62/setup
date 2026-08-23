@@ -15,6 +15,8 @@ spring:
     locations: classpath:db/migration
 
 flowset:
+  app:
+    env: test
   jwt:
     access-secret: test-access-secret-must-be-at-least-32-chars-long!!
     refresh-secret: test-refresh-secret-must-be-at-least-32-chars-long!
@@ -30,6 +32,8 @@ flowset:
     provider: local
     local-root: ./uploads-test
     public-base-url: http://localhost:8080/api/v1/files
+  rate-limit:
+    enabled: false
 
 logging:
   level:

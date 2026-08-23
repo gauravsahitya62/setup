@@ -5,7 +5,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 
-import { env } from "@/lib/env";
+import { publicApiBaseUrl } from "@/lib/api-base";
 import type { ApiError } from "@/types";
 
 export class ApiClientError extends Error {
@@ -44,7 +44,7 @@ export function bindAuthTokenHandlers(handlers: {
 }
 
 export const axiosClient: AxiosInstance = axios.create({
-  baseURL: env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, ""),
+  baseURL: publicApiBaseUrl(),
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -52,10 +52,20 @@ export const axiosClient: AxiosInstance = axios.create({
   withCredentials: true,
 });
 
+function createRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 axiosClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (!config.headers["X-Request-ID"]) {
+    config.headers["X-Request-ID"] = createRequestId();
   }
   return config;
 });
@@ -95,7 +105,14 @@ axiosClient.interceptors.response.use(
       }
     }
 
-    const data = error.response?.data;
+    let data = error.response?.data;
+    if (typeof Blob !== "undefined" && data instanceof Blob) {
+      try {
+        data = JSON.parse(await data.text()) as ApiError & { fieldErrors?: Record<string, string> };
+      } catch {
+        data = undefined;
+      }
+    }
     throw new ApiClientError({
       message: data?.message || error.message || "Request failed",
       status: status ?? error.status,
@@ -130,6 +147,25 @@ async function request<T>(
   return response.data;
 }
 
+function toRequestUrl(urlOrPath: string): string {
+  const base = publicApiBaseUrl();
+  if (urlOrPath.startsWith(base)) {
+    const rest = urlOrPath.slice(base.length);
+    return rest.startsWith("/") ? rest : `/${rest}`;
+  }
+  try {
+    const parsed = new URL(urlOrPath);
+    const marker = "/api/v1";
+    const idx = parsed.pathname.indexOf(marker);
+    if (idx >= 0) {
+      return `${parsed.pathname.slice(idx + marker.length)}${parsed.search}`;
+    }
+  } catch {
+    // Relative API path.
+  }
+  return urlOrPath.startsWith("/") ? urlOrPath : `/${urlOrPath}`;
+}
+
 export const apiClient = {
   get: <T>(path: string, options?: RequestOptions) => request<T>("get", path, undefined, options),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
@@ -140,4 +176,17 @@ export const apiClient = {
     request<T>("patch", path, body, options),
   delete: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>("delete", path, body, options),
+  getBlob: async (urlOrPath: string, options?: RequestOptions) => {
+    const response = await axiosClient.request<Blob>({
+      method: "get",
+      url: toRequestUrl(urlOrPath),
+      responseType: "blob",
+      headers: {
+        Accept: "*/*",
+        ...options?.headers,
+      },
+      signal: options?.signal,
+    });
+    return response.data;
+  },
 };

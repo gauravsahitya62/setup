@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Modal } from "@/components/shared/modal";
 import { SkeletonLoader } from "@/components/shared/skeleton-loader";
 import { ROUTES } from "@/constants";
+import { track } from "@/lib/analytics";
 import {
   BOOKING_STATUS_LABELS,
   BOOKING_STATUS_STYLES,
@@ -73,6 +74,8 @@ export function BookingRequestDetail({ requestId, role }: BookingRequestDetailPr
       const dto = await bookingApi.vendor.accept(requestId);
       setRequest(dto);
       setAcceptOpen(false);
+      track("booking_request_accepted");
+      if (dto.orderId) track("order_created");
       toast.success("Booking accepted and inventory reserved");
     } catch (err) {
       toast.error(err instanceof ApiClientError ? err.message : bookingErrorMessage(err));
@@ -91,6 +94,7 @@ export function BookingRequestDetail({ requestId, role }: BookingRequestDetailPr
       });
       setRequest(dto);
       setRejectOpen(false);
+      track("booking_request_rejected");
       toast.success("Request rejected");
     } catch (err) {
       toast.error(err instanceof ApiClientError ? err.message : bookingErrorMessage(err));

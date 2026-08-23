@@ -28,22 +28,18 @@ import { VendorAnalyticsCharts } from "@/components/vendor-dashboard/vendor-anal
 import { VendorAvailabilityCalendar } from "@/components/vendor-dashboard/vendor-availability-calendar";
 import { VendorDeliveryCalendar } from "@/components/orders/vendor-delivery-calendar";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
-import {
-  VENDOR_KPI,
-  formatVendorMoney,
-  getVendorPopularProducts,
-  inventorySummary,
-} from "@/constants/vendor-dashboard";
 import { ROUTES } from "@/constants";
 import { useMyVendor } from "@/hooks/use-my-vendor";
 import { useAuth } from "@/providers";
 import {
   bookingApi,
   mapBookingSummary,
+  marketplaceApi,
   orderApi,
   reviewApi,
   type OrderSummaryDto,
   type PublicReviewDto,
+  type VendorInventoryOverviewDto,
 } from "@/services";
 import type { BookingRequest } from "@/types";
 import { cn, formatNumber } from "@/lib/utils";
@@ -149,10 +145,10 @@ function QuickActions() {
 export function VendorDashboard() {
   const { user } = useAuth();
   const { vendor } = useMyVendor();
-  const summary = inventorySummary();
-  const popular = getVendorPopularProducts();
   const companyName = vendor?.companyName ?? "Your company";
   const firstName = user?.firstName ?? "there";
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const publicHref = vendor?.slug
     ? `${ROUTES.vendors}/${vendor.slug}`
     : ROUTES.vendor.profileWizard;
@@ -160,15 +156,17 @@ export function VendorDashboard() {
   const [pendingCount, setPendingCount] = React.useState(0);
   const [orders, setOrders] = React.useState<OrderSummaryDto[]>([]);
   const [reviews, setReviews] = React.useState<PublicReviewDto[]>([]);
+  const [inventory, setInventory] = React.useState<VendorInventoryOverviewDto | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [stats, page, orderPage] = await Promise.all([
+        const [stats, page, orderPage, overview] = await Promise.all([
           bookingApi.vendor.stats(),
           bookingApi.vendor.list({ status: "PENDING", size: 5 }),
-          orderApi.vendor.list({ size: 5 }),
+          orderApi.vendor.list({ size: 50 }),
+          marketplaceApi.vendorInventory.overview(),
         ]);
         let latestReviews: PublicReviewDto[] = [];
         if (vendor?.id) {
@@ -180,6 +178,7 @@ export function VendorDashboard() {
           setPending(page.content.map(mapBookingSummary));
           setOrders(orderPage.content);
           setReviews(latestReviews);
+          setInventory(overview);
         }
       } catch {
         if (!cancelled) {
@@ -187,6 +186,7 @@ export function VendorDashboard() {
           setPendingCount(0);
           setOrders([]);
           setReviews([]);
+          setInventory(null);
         }
       }
     })();
@@ -195,17 +195,31 @@ export function VendorDashboard() {
     };
   }, [vendor?.id]);
 
+  const activeOrders = orders.filter((order) => order.status !== "CANCELLED");
+  const estimatedRentalValue = activeOrders.reduce(
+    (sum, order) => sum + toMoney(order.totalAmount),
+    0
+  );
+  const utilization =
+    inventory && inventory.totalUnits > 0
+      ? Math.round((inventory.reservedUnits / inventory.totalUnits) * 100)
+      : 0;
+  const popular = inventory?.items.slice(0, 4) ?? [];
+
   return (
     <div className="space-y-8 lg:space-y-10">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1.5">
           <p className="text-muted-foreground text-sm">{companyName} · Owner</p>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Good afternoon, {firstName}
+            {greeting}, {firstName}
           </h1>
           <p className="text-muted-foreground max-w-xl text-sm">
-            You have {pendingCount} pending requests and {summary.lowStock} SKUs running low.
-            Revenue is up {VENDOR_KPI.revenueChange}% this month.
+            You have {pendingCount} pending request{pendingCount === 1 ? "" : "s"}
+            {inventory
+              ? ` and ${inventory.lowAvailabilityCount} SKU${inventory.lowAvailabilityCount === 1 ? "" : "s"} running low.`
+              : "."}{" "}
+            Values below are estimated rental value, not collected revenue.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -225,9 +239,9 @@ export function VendorDashboard() {
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
-          label="Revenue"
-          value={formatVendorMoney(VENDOR_KPI.revenueMonth)}
-          change={VENDOR_KPI.revenueChange}
+          label="Estimated rental value"
+          value={formatEstimatedRental(estimatedRentalValue, activeOrders[0]?.currency ?? "INR")}
+          hint="From confirmed orders. Not collected revenue."
           href={ROUTES.vendor.analytics}
         />
         <KpiCard
@@ -238,14 +252,14 @@ export function VendorDashboard() {
         />
         <KpiCard
           label="Active SKUs"
-          value={String(summary.active)}
-          hint={`${summary.draft} drafts · ${summary.lowStock} low stock`}
+          value={String(inventory?.totalVariants ?? 0)}
+          hint={`${inventory?.totalProducts ?? 0} products · ${inventory?.lowAvailabilityCount ?? 0} low stock`}
           href={ROUTES.vendor.catalog}
         />
         <KpiCard
-          label="Utilization"
-          value={`${VENDOR_KPI.utilization}%`}
-          hint={`${formatNumber(summary.reservedUnits)} of ${formatNumber(summary.totalUnits)} units reserved`}
+          label="Units reserved"
+          value={`${utilization}%`}
+          hint={`${formatNumber(inventory?.reservedUnits ?? 0)} of ${formatNumber(inventory?.totalUnits ?? 0)} units reserved`}
         />
       </section>
 
@@ -360,30 +374,32 @@ export function VendorDashboard() {
             </CardAction>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
-            {popular.map((item) => {
-              const available = item.stock - item.reserved;
-              return (
+            {popular.length === 0 ? (
+              <p className="text-muted-foreground text-sm sm:col-span-2">
+                No inventory listed yet. Add products to see stock here.
+              </p>
+            ) : (
+              popular.map((item) => (
                 <div
                   key={item.id}
                   className="border-border/70 hover:bg-muted/30 flex gap-3 rounded-xl border p-3 transition-colors"
                 >
                   <div className="bg-muted size-16 shrink-0 overflow-hidden rounded-lg">
-                    {item.imageUrl ? (
+                    {item.featuredImage ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.imageUrl} alt="" className="size-full object-cover" />
+                      <img src={item.featuredImage} alt="" className="size-full object-cover" />
                     ) : null}
                   </div>
                   <div className="min-w-0 space-y-1">
-                    <p className="truncate text-sm font-medium">{item.name}</p>
+                    <p className="truncate text-sm font-medium">{item.productName}</p>
                     <p className="text-muted-foreground text-xs">{item.sku}</p>
-                    <Rating value={item.rating} reviewCount={item.reviewCount} />
                     <p className="text-muted-foreground text-xs tabular-nums">
-                      {available} available · {formatVendorMoney(item.dailyRate, item.currency)}/day
+                      {item.availableQuantity} available · {item.reservedQuantity} reserved
                     </p>
                   </div>
                 </div>
-              );
-            })}
+              ))
+            )}
           </CardContent>
         </Card>
 

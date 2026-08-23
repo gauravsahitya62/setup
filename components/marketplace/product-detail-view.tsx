@@ -37,6 +37,7 @@ import { MarketplaceProductGrid } from "@/components/marketplace/marketplace-pro
 import { Rating } from "@/components/shared/rating";
 import { SkeletonLoader } from "@/components/shared/skeleton-loader";
 import { ROUTES } from "@/constants";
+import { track } from "@/lib/analytics";
 import { useFavorites } from "@/hooks/use-favorites";
 import {
   mapProductResponseToListing,
@@ -84,6 +85,10 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
   const isFavorite = favoriteIds.has(product.id);
   const selectedVariant = product.variants.find((v) => v.id === selectedVariantId);
 
+  React.useEffect(() => {
+    track("product_viewed", { category: product.categorySlug });
+  }, [product.id, product.categorySlug]);
+
   async function checkAvailability() {
     if (!selectedVariantId || !startDate || !endDate) return;
     setChecking(true);
@@ -95,6 +100,11 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
         Number(quantity)
       );
       setAvailability(result);
+      track("availability_checked", {
+        available: result.available,
+        requestedQuantity: Number(quantity) || 0,
+        availableQuantity: result.availableQuantity,
+      });
     } catch (error) {
       setAvailability(null);
       const message = error instanceof Error ? error.message : "Could not check availability";

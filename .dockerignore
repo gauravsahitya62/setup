@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.github
+.husky
+backend
+docs
+coverage
+uploads
+*.md
+.env
+.env.*
+!.env.example
+npm-debug.log*
+.DS_Store
+agent-transcripts

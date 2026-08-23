@@ -96,6 +96,22 @@ class ProductSpecificationsTest {
         assertThat(result.getContent()).extracting(ProductEntity::getId).doesNotContain(fromUnverified.getId());
     }
 
+    @Test
+    void keywordMatchesVendorCompanyName() {
+        VendorEntity vendor = createVendor("palace@" + UUID.randomUUID() + ".example.com", "Grand Palace Rentals");
+        CategoryEntity category = createCategory("Palace Category " + UUID.randomUUID());
+        ProductEntity table = createProduct(vendor, category, "Banquet Round Table", new BigDecimal("12.00"));
+
+        var spec = ProductSpecifications.allOf(
+                ProductSpecifications.notDeleted(),
+                ProductSpecifications.isPublished(),
+                ProductSpecifications.keyword("Grand Palace Rentals"));
+
+        Page<ProductEntity> result = productRepository.findAll(spec, PageRequest.of(0, 20));
+
+        assertThat(result.getContent()).extracting(ProductEntity::getId).containsExactly(table.getId());
+    }
+
     private VendorEntity createVendor(String email, String companyName) {
         UserEntity owner = new UserEntity();
         owner.setFirstName("Vendor");

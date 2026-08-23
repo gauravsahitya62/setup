@@ -63,7 +63,7 @@ public class PlannerBookingRequestController {
             @ApiResponse(responseCode = "403", description = "Not a planner"),
             @ApiResponse(responseCode = "409", description = "Insufficient availability or duplicate pending request", content = @Content(examples = {
                     @ExampleObject(name = "availability", value = """
-                            { "status": 409, "error": "Conflict", "message": "Only 70 units are currently available for the selected dates." }
+                            { "status": 409, "error": "Conflict", "message": "Royal Gold Chair (Gold): only 70 of 100 requested units are available for the selected dates." }
                             """),
                     @ExampleObject(name = "duplicate", value = """
                             { "status": 409, "error": "Conflict", "message": "A pending booking request already exists for this vendor, products, and dates." }

@@ -1,10 +1,20 @@
 spring:
   application:
     name: flowset-backend
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/flowset}
     username: ${DATABASE_USERNAME:flowset}
     password: ${DATABASE_PASSWORD:flowset}
+    hikari:
+      pool-name: flowset-hikari
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:10}
+      minimum-idle: ${HIKARI_MIN_IDLE:2}
+      connection-timeout: ${HIKARI_CONNECTION_TIMEOUT_MS:30000}
+      idle-timeout: ${HIKARI_IDLE_TIMEOUT_MS:600000}
+      max-lifetime: ${HIKARI_MAX_LIFETIME_MS:1800000}
+      leak-detection-threshold: ${HIKARI_LEAK_DETECTION_MS:0}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -27,16 +37,34 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  shutdown: graceful
   error:
-    include-message: always
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+    include-exception: false
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+      show-components: never
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
 
 flowset:
+  app:
+    env: ${APPLICATION_ENV:development}
+    frontend-url: ${FRONTEND_URL:http://localhost:3000}
   jwt:
     access-secret: ${JWT_ACCESS_SECRET}
     refresh-secret: ${JWT_REFRESH_SECRET}
@@ -52,6 +80,16 @@ flowset:
     provider: ${STORAGE_PROVIDER:local}
     local-root: ${STORAGE_LOCAL_ROOT:./uploads}
     public-base-url: ${STORAGE_PUBLIC_BASE_URL:http://localhost:8080/api/v1/files}
+    s3-bucket: ${AWS_S3_BUCKET:}
+    s3-region: ${AWS_REGION:}
+    s3-endpoint: ${AWS_S3_ENDPOINT:}
+    signed-url-ttl-seconds: ${AWS_S3_SIGNED_URL_TTL_SECONDS:900}
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    auth-per-minute: ${RATE_LIMIT_AUTH_PER_MINUTE:20}
+    search-per-minute: ${RATE_LIMIT_SEARCH_PER_MINUTE:60}
+    support-per-minute: ${RATE_LIMIT_SUPPORT_PER_MINUTE:10}
+    admin-per-minute: ${RATE_LIMIT_ADMIN_PER_MINUTE:30}
   inventory:
     low-stock-threshold-percent: ${INVENTORY_LOW_STOCK_THRESHOLD_PERCENT:20}
     max-calendar-days: ${INVENTORY_MAX_CALENDAR_DAYS:366}
@@ -61,16 +99,23 @@ flowset:
   reviews:
     edit-window-days: ${REVIEW_EDIT_WINDOW_DAYS:30}
     max-text-length: ${REVIEW_MAX_TEXT_LENGTH:2000}
+  demo-seed:
+    enabled: ${DEMO_SEED_ENABLED:false}
+    password: ${DEMO_SEED_PASSWORD:DemoPassw0rd!}
 
 springdoc:
   api-docs:
+    enabled: ${SPRINGDOC_ENABLED:true}
     path: /v3/api-docs
   swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:true}
     path: /swagger-ui.html
     operations-sorter: method
 
 logging:
   level:
-    root: INFO
-    com.flowset: INFO
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.flowset: ${LOG_LEVEL:INFO}
     org.springframework.security: INFO
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} rid=%X{requestId} uid=%X{userId} - %msg%n"

@@ -2,9 +2,11 @@ package com.flowset.security.jwt;
 
 import com.flowset.common.RoleName;
 import com.flowset.common.UserStatus;
+import com.flowset.observability.RequestIdFilter;
 import com.flowset.security.UserPrincipal;
 import com.flowset.users.repository.UserRepository;
 import io.jsonwebtoken.Claims;
+import org.slf4j.MDC;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -67,6 +69,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     principal, null, principal.getAuthorities());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+                    MDC.put(RequestIdFilter.MDC_USER_ID, user.getId().toString());
                 });
             }
         } catch (Exception ignored) {

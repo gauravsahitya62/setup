@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { ROUTES } from "@/constants";
+import { track } from "@/lib/analytics";
 import {
   EVENT_TYPE_LABELS,
   EVENT_TYPES,
@@ -63,6 +64,7 @@ export function CreateProjectWizard() {
     try {
       if (asDraft) setSavingDraft(true);
       const created = await projectApi.create(payload);
+      track("project_created", { status: payload.status });
       if (cover) {
         await projectApi.uploadCover(created.id, cover);
       }

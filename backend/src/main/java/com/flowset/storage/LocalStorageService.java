@@ -14,16 +14,15 @@ import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-/**
- * Local filesystem storage. Swap for S3/R2/MinIO later by providing another {@link StorageService} bean.
- */
 @Service
+@ConditionalOnProperty(name = "flowset.storage.provider", havingValue = "local", matchIfMissing = true)
 public class LocalStorageService implements StorageService {
 
     private static final Logger log = LoggerFactory.getLogger(LocalStorageService.class);
@@ -48,17 +47,7 @@ public class LocalStorageService implements StorageService {
 
     @Override
     public StoredObject store(MultipartFile file, String folder, Set<String> allowedContentTypes) {
-        if (file == null || file.isEmpty()) {
-            throw new BadRequestException("File is required");
-        }
-        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
-        Set<String> allowed = allowedContentTypes == null || allowedContentTypes.isEmpty()
-                ? AllowedContentTypes.IMAGES_AND_PDF
-                : allowedContentTypes;
-        if (!allowed.contains(contentType)) {
-            throw new BadRequestException("Unsupported file type: " + contentType);
-        }
-
+        String contentType = FileValidator.validate(file, allowedContentTypes);
         String original = StringUtils.cleanPath(
                 file.getOriginalFilename() == null ? "upload.bin" : file.getOriginalFilename());
         String extension = "";
@@ -114,7 +103,7 @@ public class LocalStorageService implements StorageService {
             Files.deleteIfExists(file);
             log.info("Deleted file relativePath={}", relativePath);
         } catch (IOException e) {
-            log.warn("Failed to delete file relativePath={}", relativePath, e);
+            log.warn("Failed to delete file relativePath={}", relativePath);
         }
     }
 

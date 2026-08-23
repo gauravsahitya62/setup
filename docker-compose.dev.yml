@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: flowset-postgres
+    environment:
+      POSTGRES_DB: flowset
+      POSTGRES_USER: flowset
+      POSTGRES_PASSWORD: flowset
+    ports:
+      - "5432:5432"
+    volumes:
+      - flowset_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowset -d flowset"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: flowset-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      APPLICATION_ENV: development
+      DATABASE_URL: jdbc:postgresql://postgres:5432/flowset
+      DATABASE_USERNAME: flowset
+      DATABASE_PASSWORD: flowset
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-must-be-at-least-32-characters}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-must-be-at-least-32-characters}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      COOKIE_SECURE: "false"
+      STORAGE_PROVIDER: local
+      STORAGE_LOCAL_ROOT: /app/uploads
+      STORAGE_PUBLIC_BASE_URL: http://localhost:8080/api/v1/files
+      FRONTEND_URL: http://localhost:3000
+      SERVER_PORT: 8080
+    volumes:
+      - flowset_uploads:/app/uploads
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APP_NAME: FlowSet
+        NEXT_PUBLIC_APP_URL: http://localhost:3000
+        NEXT_PUBLIC_APP_ENV: development
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8080/api/v1
+    container_name: flowset-web
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_INTERNAL_BASE_URL: http://api:8080/api/v1
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080/api/v1
+    ports:
+      - "3000:3000"
+
+volumes:
+  flowset_pg_data:
+  flowset_uploads:

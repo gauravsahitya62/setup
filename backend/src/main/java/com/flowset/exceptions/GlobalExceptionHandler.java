@@ -124,6 +124,59 @@ public class GlobalExceptionHandler {
                         request.getRequestURI()));
     }
 
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleConstraintViolation(
+            jakarta.validation.ConstraintViolationException ex,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.badRequest()
+                .body(ApiErrorResponse.of(
+                        HttpStatus.BAD_REQUEST.value(),
+                        "Validation Failed",
+                        "Request validation failed",
+                        request.getRequestURI()));
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnreadable(
+            org.springframework.http.converter.HttpMessageNotReadableException ex,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.badRequest()
+                .body(ApiErrorResponse.of(
+                        HttpStatus.BAD_REQUEST.value(),
+                        "Bad Request",
+                        "Request body is invalid",
+                        request.getRequestURI()));
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleUploadTooLarge(
+            org.springframework.web.multipart.MaxUploadSizeExceededException ex,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiErrorResponse.of(
+                        HttpStatus.PAYLOAD_TOO_LARGE.value(),
+                        "Payload Too Large",
+                        "File exceeds the maximum allowed size",
+                        request.getRequestURI()));
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrity(
+            org.springframework.dao.DataIntegrityViolationException ex,
+            HttpServletRequest request
+    ) {
+        log.warn("Data integrity violation on {}", request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiErrorResponse.of(
+                        HttpStatus.CONFLICT.value(),
+                        "Conflict",
+                        "The request conflicts with existing data",
+                        request.getRequestURI()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
         log.error("Unhandled error on {}", request.getRequestURI(), ex);

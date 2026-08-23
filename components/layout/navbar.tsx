@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { SiteAuthActions } from "@/components/layout/site-auth-actions";
 import { ROUTES } from "@/constants";
 import { cn } from "@/lib/utils";
 
@@ -52,12 +53,7 @@ export function Navbar({ className }: NavbarProps) {
 
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
-          <Button variant="ghost" className="hidden rounded-xl sm:inline-flex" asChild>
-            <Link href={ROUTES.auth.signIn}>Sign in</Link>
-          </Button>
-          <Button className="hidden rounded-xl sm:inline-flex" asChild>
-            <Link href={ROUTES.auth.signUp}>Start Planning</Link>
-          </Button>
+          <SiteAuthActions />
 
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
@@ -81,13 +77,8 @@ export function Navbar({ className }: NavbarProps) {
                   </Link>
                 ))}
               </nav>
-              <div className="mt-6 flex flex-col gap-2">
-                <Button variant="outline" className="rounded-xl" asChild>
-                  <Link href={ROUTES.auth.signIn}>Sign in</Link>
-                </Button>
-                <Button className="rounded-xl" asChild>
-                  <Link href={ROUTES.auth.signUp}>Start Planning</Link>
-                </Button>
+              <div className="mt-6">
+                <SiteAuthActions compact onNavigate={() => setOpen(false)} />
               </div>
             </SheetContent>
           </Sheet>

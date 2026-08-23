@@ -26,17 +26,23 @@ export function RecommendedVendors({ vendors }: RecommendedVendorsProps) {
         </Button>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {vendors.map((vendor, index) => (
-          <div
-            key={vendor.id}
-            className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both duration-500"
-            style={{ animationDelay: `${index * 60}ms` }}
-          >
-            <VendorCard vendor={vendor} href={`${ROUTES.vendors}/${vendor.slug}`} />
-          </div>
-        ))}
-      </div>
+      {vendors.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          No verified vendors are listed yet. Browse the vendor directory as catalogs are published.
+        </p>
+      ) : (
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {vendors.map((vendor, index) => (
+            <div
+              key={vendor.id}
+              className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both duration-500"
+              style={{ animationDelay: `${index * 60}ms` }}
+            >
+              <VendorCard vendor={vendor} href={`${ROUTES.vendors}/${vendor.slug}`} />
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

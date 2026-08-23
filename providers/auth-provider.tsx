@@ -3,7 +3,9 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
+import { startPageTransition } from "@/components/shared/navigation-progress";
 import { authApi, bindAuthTokenHandlers, dashboardPathForRole, mapBackendUser } from "@/services";
+import { track } from "@/lib/analytics";
 import { clearAuthHintCookies, setAuthHintCookies } from "@/lib/auth/session-cookies";
 import { useAuthStore } from "@/store";
 import type { AuthUser, UserRole } from "@/types";
@@ -116,6 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const tokens = await authApi.login(payload);
       const mapped = mapBackendUser(tokens.user);
       applySession(mapped, tokens.accessToken);
+      startPageTransition();
       router.replace(dashboardPathForRole(mapped.role));
       return mapped;
     },
@@ -127,6 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const tokens = await authApi.registerPlanner(payload);
       const mapped = mapBackendUser(tokens.user);
       applySession(mapped, tokens.accessToken);
+      track("planner_registered", { role: "planner" });
+      startPageTransition();
       router.replace(dashboardPathForRole(mapped.role));
       return mapped;
     },
@@ -138,6 +143,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const tokens = await authApi.registerVendor(payload);
       const mapped = mapBackendUser(tokens.user);
       applySession(mapped, tokens.accessToken);
+      track("vendor_registered", { role: "vendor" });
+      startPageTransition();
       router.replace(dashboardPathForRole(mapped.role));
       return mapped;
     },
@@ -152,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       clearAuth();
       clearAuthHintCookies();
+      startPageTransition();
       router.replace("/sign-in");
     }
   }, [clearAuth, router]);

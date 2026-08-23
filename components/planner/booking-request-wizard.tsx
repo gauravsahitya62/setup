@@ -18,9 +18,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SkeletonLoader } from "@/components/shared/skeleton-loader";
 import { ROUTES } from "@/constants";
+import { track } from "@/lib/analytics";
 import { EVENT_TYPE_LABELS, formatEventDate } from "@/lib/projects/labels";
 import { bookingRequestSchema, type BookingRequestFormValues } from "@/lib/booking/schema";
-import { bookingErrorMessage } from "@/lib/booking/labels";
+import { bookingErrorMessage, formatAvailabilityHint } from "@/lib/booking/labels";
 import {
   formatEstimatedRental,
   lineEstimatedValue,
@@ -30,26 +31,30 @@ import {
 import {
   ApiClientError,
   bookingApi,
+  marketplaceApi,
   projectApi,
   type ProjectDto,
   type ProjectProductDto,
 } from "@/services";
+import { cn } from "@/lib/utils";
 
 const STEPS = [
   "Select vendor",
-  "Select products",
-  "Quantities",
+  "Products & quantities",
   "Event details",
   "Delivery details",
   "Review",
-  "Send request",
 ] as const;
 
 interface BookingRequestWizardProps {
   projectId: string;
+  vendorId?: string;
 }
 
-export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
+export function BookingRequestWizard({
+  projectId,
+  vendorId: presetVendorId,
+}: BookingRequestWizardProps) {
   const router = useRouter();
   const [step, setStep] = React.useState(0);
   const [project, setProject] = React.useState<ProjectDto | null>(null);
@@ -57,6 +62,10 @@ export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
   const [loading, setLoading] = React.useState(true);
   const [submitting, setSubmitting] = React.useState(false);
   const [created, setCreated] = React.useState<{ id: string; vendorName: string } | null>(null);
+  const [stockByVariant, setStockByVariant] = React.useState<
+    Record<string, { available: number; source: "dates" | "on-hand" }>
+  >({});
+  const [checkingStock, setCheckingStock] = React.useState(false);
 
   const form = useForm<BookingRequestFormValues>({
     resolver: zodResolver(bookingRequestSchema),
@@ -94,11 +103,21 @@ export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
         ]);
         if (cancelled) return;
         setProject(projectDto);
-        setProducts(productRows.filter((row) => row.listed && row.productVariantId));
+        const listed = productRows.filter((row) => row.listed && row.productVariantId);
+        setProducts(listed);
+        const vendorExists = Boolean(
+          presetVendorId && listed.some((row) => row.vendorId === presetVendorId)
+        );
+        const selectedVendorId = vendorExists ? presetVendorId! : "";
+        const selectedVariants = vendorExists
+          ? listed
+              .filter((row) => row.vendorId === selectedVendorId && row.productVariantId)
+              .map((row) => row.productVariantId as string)
+          : [];
         form.reset({
           projectId,
-          vendorId: "",
-          variantIds: [],
+          vendorId: selectedVendorId,
+          variantIds: selectedVariants,
           quantities: Object.fromEntries(
             productRows
               .filter((row) => row.productVariantId)
@@ -119,6 +138,9 @@ export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
           deliveryNotes: "",
           termsAccepted: false,
         });
+        if (vendorExists) {
+          setStep(1);
+        }
       } catch (error) {
         toast.error(bookingErrorMessage(error, "Could not load project"));
       } finally {
@@ -128,7 +150,7 @@ export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
     return () => {
       cancelled = true;
     };
-  }, [form, projectId]);
+  }, [form, projectId, presetVendorId]);
 
   const vendors = React.useMemo(() => {
     const map = new Map<string, { id: string; name: string; verified: boolean; count: number }>();
@@ -157,20 +179,89 @@ export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
     return sum + lineEstimatedValue(toMoney(product.snapshotPricePerDay), quantity, days);
   }, 0);
   const vendorName = vendors.find((vendor) => vendor.id === values.vendorId)?.name ?? "Vendor";
+  const rentalStart = String(values.rentalStartDate || project?.eventDate || "");
+  const rentalEnd = String(values.rentalEndDate || project?.eventDate || "");
+  const datesChosen = Boolean(values.rentalStartDate && values.rentalEndDate);
+
+  React.useEffect(() => {
+    const fromCatalog: Record<string, { available: number; source: "dates" | "on-hand" }> = {};
+    for (const product of products) {
+      if (product.productVariantId && product.availableQuantity != null) {
+        fromCatalog[product.productVariantId] = {
+          available: product.availableQuantity,
+          source: "on-hand",
+        };
+      }
+    }
+    setStockByVariant(fromCatalog);
+
+    const variantIds = products
+      .map((product) => product.productVariantId)
+      .filter((id): id is string => Boolean(id));
+    if (!rentalStart || !rentalEnd || variantIds.length === 0) return;
+
+    let cancelled = false;
+    async function loadDateStock() {
+      setCheckingStock(true);
+      try {
+        const entries = await Promise.all(
+          variantIds.map(async (id) => {
+            try {
+              const result = await marketplaceApi.inventory.check(id, rentalStart, rentalEnd, 1);
+              return [
+                id,
+                { available: result.availableQuantity, source: "dates" as const },
+              ] as const;
+            } catch {
+              return [id, { available: 0, source: "dates" as const }] as const;
+            }
+          })
+        );
+        if (!cancelled) setStockByVariant(Object.fromEntries(entries));
+      } finally {
+        if (!cancelled) setCheckingStock(false);
+      }
+    }
+    void loadDateStock();
+    return () => {
+      cancelled = true;
+    };
+  }, [products, rentalStart, rentalEnd]);
+
+  const stockFor = React.useCallback(
+    (product: ProjectProductDto) => {
+      const id = product.productVariantId ?? "";
+      if (stockByVariant[id]) return stockByVariant[id];
+      if (product.availableQuantity != null) {
+        return { available: product.availableQuantity, source: "on-hand" as const };
+      }
+      return null;
+    },
+    [stockByVariant]
+  );
+
+  const shortages = selectedProducts.flatMap((product) => {
+    const stock = stockFor(product);
+    const requested = Number(values.quantities[product.productVariantId ?? ""] ?? product.quantity);
+    if (!stock || !Number.isFinite(requested) || requested <= stock.available) return [];
+    return [{ product, stock, requested }];
+  });
 
   const canAdvance = () => {
     if (step === 0) return Boolean(values.vendorId);
-    if (step === 1) return values.variantIds.length > 0;
-    if (step === 2) {
+    if (step === 1) {
+      if (values.variantIds.length === 0) return false;
       return selectedProducts.every((product) => {
         const quantity = Number(values.quantities[product.productVariantId ?? ""] ?? 0);
-        return Number.isInteger(quantity) && quantity >= 1;
+        if (!Number.isInteger(quantity) || quantity < 1) return false;
+        const stock = stockFor(product);
+        return !stock || quantity <= stock.available;
       });
     }
-    if (step === 3) {
+    if (step === 2) {
       return Boolean(values.eventDate && values.rentalStartDate && values.rentalEndDate);
     }
-    if (step === 4) {
+    if (step === 3) {
       return Boolean(
         values.deliveryDate &&
         values.pickupDate &&
@@ -224,8 +315,9 @@ export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
         },
       });
       setCreated({ id: createdRequest.id, vendorName: createdRequest.vendorName ?? vendorName });
+      track("booking_request_created");
       toast.success("Booking request sent");
-      setStep(6);
+      setStep(5);
     } catch (error) {
       toast.error(error instanceof ApiClientError ? error.message : bookingErrorMessage(error));
     } finally {
@@ -349,63 +441,104 @@ export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
 
           {step === 1 ? (
             <div className="space-y-3">
+              <p className="text-muted-foreground text-xs">
+                {checkingStock
+                  ? "Checking availability…"
+                  : "Select products and set quantities. Stay within the available units shown for each item."}
+              </p>
               {vendorProducts.map((product) => {
                 const variantId = product.productVariantId ?? "";
                 const checked = values.variantIds.includes(variantId);
+                const requested = Number(values.quantities[variantId] ?? product.quantity);
+                const stock = stockFor(product);
+                const over = Boolean(checked && stock && requested > stock.available);
                 return (
-                  <label
+                  <div
                     key={product.id}
-                    className="border-border/70 flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3"
+                    className={cn(
+                      "border-border/70 rounded-xl border px-4 py-3",
+                      checked && "border-ring/60"
+                    )}
                   >
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={(value) => {
-                        const next = value
-                          ? [...values.variantIds, variantId]
-                          : values.variantIds.filter((id) => id !== variantId);
-                        form.setValue("variantIds", next);
-                      }}
-                    />
-                    <div>
-                      <p className="text-sm font-medium">{product.productName}</p>
-                      <p className="text-muted-foreground text-xs">
-                        {product.variantName} ·{" "}
-                        {formatEstimatedRental(toMoney(product.snapshotPricePerDay))}/day
-                      </p>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                      <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(value) => {
+                            const next = value
+                              ? [...values.variantIds, variantId]
+                              : values.variantIds.filter((id) => id !== variantId);
+                            form.setValue("variantIds", next);
+                            if (value && values.quantities[variantId] == null) {
+                              form.setValue("quantities", {
+                                ...values.quantities,
+                                [variantId]: product.quantity,
+                              });
+                            }
+                          }}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{product.productName}</p>
+                          <p className="text-muted-foreground text-xs">
+                            {product.variantName} ·{" "}
+                            {formatEstimatedRental(toMoney(product.snapshotPricePerDay))}/day
+                          </p>
+                        </div>
+                      </label>
+                      <div className="w-full shrink-0 sm:w-28">
+                        <Label htmlFor={`qty-${variantId}`} className="sr-only">
+                          Quantity for {product.productName}
+                        </Label>
+                        <Input
+                          id={`qty-${variantId}`}
+                          type="number"
+                          min={1}
+                          max={stock?.available}
+                          disabled={!checked}
+                          value={String(values.quantities[variantId] ?? product.quantity)}
+                          onChange={(event) =>
+                            form.setValue("quantities", {
+                              ...values.quantities,
+                              [variantId]: event.target.value,
+                            })
+                          }
+                          className="h-10 rounded-xl"
+                        />
+                      </div>
                     </div>
-                  </label>
+                    {stock ? (
+                      <p
+                        className={cn(
+                          "mt-2 text-xs sm:pl-8",
+                          over ? "text-destructive" : "text-muted-foreground"
+                        )}
+                      >
+                        {over
+                          ? formatAvailabilityHint({
+                              productName: product.productName,
+                              variantName: product.variantName,
+                              available: stock.available,
+                              requested,
+                              datesKnown: datesChosen || stock.source === "dates",
+                            })
+                          : `${stock.available} units available${
+                              datesChosen || stock.source === "dates"
+                                ? " for the selected dates"
+                                : ""
+                            }`}
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground mt-2 text-xs sm:pl-8">
+                        Availability is confirmed after you pick rental dates.
+                      </p>
+                    )}
+                  </div>
                 );
               })}
             </div>
           ) : null}
 
           {step === 2 ? (
-            <div className="space-y-4">
-              {selectedProducts.map((product) => (
-                <div key={product.id} className="space-y-1.5">
-                  <Label htmlFor={`qty-${product.productVariantId}`}>
-                    {product.productName} · {product.variantName}
-                  </Label>
-                  <Input
-                    id={`qty-${product.productVariantId}`}
-                    type="number"
-                    min={1}
-                    value={String(
-                      values.quantities[product.productVariantId ?? ""] ?? product.quantity
-                    )}
-                    onChange={(event) =>
-                      form.setValue("quantities", {
-                        ...values.quantities,
-                        [product.productVariantId ?? ""]: event.target.value,
-                      })
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {step === 3 ? (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="bg-muted/40 rounded-xl px-4 py-3 text-sm sm:col-span-2">
                 <p className="font-medium">{project.name}</p>
@@ -434,7 +567,7 @@ export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
             </div>
           ) : null}
 
-          {step === 4 ? (
+          {step === 3 ? (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="deliveryDate">Delivery date</Label>
@@ -495,7 +628,7 @@ export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
             </div>
           ) : null}
 
-          {step === 5 ? (
+          {step === 4 ? (
             <div className="space-y-4 text-sm">
               <p>
                 <span className="text-muted-foreground">Vendor</span>
@@ -510,6 +643,8 @@ export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
                     quantity,
                     days
                   );
+                  const stock = stockFor(product);
+                  const over = Boolean(stock && quantity > stock.available);
                   return (
                     <div
                       key={product.id}
@@ -521,12 +656,48 @@ export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
                           {product.variantName} · {quantity} units ·{" "}
                           {formatEstimatedRental(toMoney(product.snapshotPricePerDay))}/day
                         </p>
+                        {stock ? (
+                          <p
+                            className={cn(
+                              "mt-1 text-xs",
+                              over ? "text-destructive" : "text-muted-foreground"
+                            )}
+                          >
+                            {over
+                              ? formatAvailabilityHint({
+                                  productName: product.productName,
+                                  variantName: product.variantName,
+                                  available: stock.available,
+                                  requested: quantity,
+                                  datesKnown: true,
+                                })
+                              : `${stock.available} units available for the selected dates`}
+                          </p>
+                        ) : null}
                       </div>
                       <p className="font-semibold tabular-nums">{formatEstimatedRental(line)}</p>
                     </div>
                   );
                 })}
               </div>
+              {shortages.length > 0 ? (
+                <div className="border-destructive/30 bg-destructive/5 rounded-xl border px-4 py-3 text-sm">
+                  <p className="text-destructive font-medium">Reduce quantity before sending</p>
+                  <ul className="mt-2 space-y-1">
+                    {shortages.map((item) => (
+                      <li key={item.product.id} className="text-destructive text-xs">
+                        {formatAvailabilityHint({
+                          productName: item.product.productName,
+                          variantName: item.product.variantName,
+                          available: item.stock.available,
+                          requested: item.requested,
+                          datesKnown: true,
+                        })}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               <p>
                 Rental {String(values.rentalStartDate)} → {String(values.rentalEndDate)} ({days}{" "}
                 days)
@@ -569,7 +740,7 @@ export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
           <ArrowLeft className="size-4" />
           Back
         </Button>
-        {step < 5 ? (
+        {step < 4 ? (
           <Button
             className="rounded-xl"
             disabled={!canAdvance()}
@@ -581,7 +752,7 @@ export function BookingRequestWizard({ projectId }: BookingRequestWizardProps) {
         ) : (
           <Button
             className="rounded-xl"
-            disabled={submitting || !values.termsAccepted}
+            disabled={submitting || !values.termsAccepted || shortages.length > 0}
             onClick={() => void submit()}
           >
             {submitting ? (

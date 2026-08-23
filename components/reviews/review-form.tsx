@@ -16,6 +16,7 @@ import {
   type ReviewFormValues,
 } from "@/lib/reviews/schema";
 import { reviewErrorMessage } from "@/lib/reviews/labels";
+import { track } from "@/lib/analytics";
 import { ApiClientError, reviewApi, type ReviewDto } from "@/services";
 
 interface ReviewFormProps {
@@ -64,6 +65,7 @@ export function ReviewForm({
         ? await reviewApi.update(existing.id, payload)
         : await reviewApi.create({ orderId, ...payload });
       toast.success(existing ? "Review updated" : "Review published");
+      if (!existing) track("review_submitted", { overallRating: values.overallRating });
       onSubmitted?.(dto);
     } catch (err) {
       toast.error(

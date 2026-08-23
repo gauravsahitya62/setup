@@ -1,0 +1,26 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type deploy-production to confirm"
+        required: true
+        type: string
+
+jobs:
+  ci:
+    if: github.event.inputs.confirm == 'deploy-production'
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    if: github.event.inputs.confirm == 'deploy-production'
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Production deploy placeholder
+        run: |
+          echo "CI passed. Production deploy requires GitHub Environment approval plus AWS/Vercel credentials."
+          echo "Follow docs/deployment/deployment-guide.md and docs/deployment/rollback.md"
+          echo "This workflow does not auto-deploy from feature branches."

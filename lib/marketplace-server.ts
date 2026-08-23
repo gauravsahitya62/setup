@@ -1,4 +1,4 @@
-import { env } from "@/lib/env";
+import { serverApiBaseUrl } from "@/lib/api-base";
 import type {
   CategoryDto,
   PageResponse,
@@ -7,7 +7,7 @@ import type {
   SearchParams,
 } from "@/services/marketplace-api";
 
-const apiBase = env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "");
+const apiBase = serverApiBaseUrl();
 
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ExternalLink, Loader2, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Loader2, Plus, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -113,19 +113,36 @@ export function ProjectProductsSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Products</h2>
           <p className="text-muted-foreground mt-1 text-sm">
-            Shortlist only — adding or removing items never changes inventory.
+            This is a shortlist. To notify a vendor, send a booking request — inventory is reserved
+            only after they accept.
           </p>
         </div>
-        <Button size="sm" className="rounded-xl" asChild>
-          <Link href={marketplaceHref}>
-            <Plus className="size-3.5" />
-            Add more
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" className="rounded-xl" asChild>
+            <Link href={marketplaceHref}>
+              <Plus className="size-3.5" />
+              Add more
+            </Link>
+          </Button>
+          <Button size="sm" className="rounded-xl" asChild>
+            <Link href={ROUTES.planner.projectBookingNew(projectId)}>
+              <Send className="size-3.5" />
+              Request booking
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      <div className="border-primary/20 bg-primary/5 rounded-2xl border px-4 py-3 text-sm">
+        <p className="font-medium">Next step: send a booking request</p>
+        <p className="text-muted-foreground mt-1">
+          Choose the vendor and items, then send. They get a notification and can accept or decline.
+          Nothing is reserved until they accept.
+        </p>
       </div>
 
       <div className="border-border/70 overflow-x-auto rounded-2xl border">
@@ -170,6 +187,16 @@ export function ProjectProductsSection({
                     {item.vendorName}
                     {item.vendorVerified ? " · Verified" : ""}
                   </Link>
+                  {item.listed && item.productVariantId ? (
+                    <p className="mt-1">
+                      <Link
+                        href={`${ROUTES.planner.projectBookingNew(projectId)}?vendor=${item.vendorId}`}
+                        className="text-foreground text-xs font-medium underline-offset-4 hover:underline"
+                      >
+                        Request booking
+                      </Link>
+                    </p>
+                  ) : null}
                 </td>
                 <td className="px-4 py-3">
                   <Input

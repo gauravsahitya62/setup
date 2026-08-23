@@ -299,6 +299,53 @@ export interface CalendarDayDto {
   availableQuantity: number;
 }
 
+export interface CalendarOccupancyLineDto {
+  variantId: string;
+  productName: string;
+  variantName: string;
+  sku?: string | null;
+  quantity: number;
+}
+
+export interface CalendarOccupancyBookingDto {
+  orderId?: string | null;
+  orderNumber?: string | null;
+  orderStatus?: string | null;
+  bookingRequestId?: string | null;
+  plannerName?: string | null;
+  projectName?: string | null;
+  rentalStartDate: string;
+  rentalEndDate: string;
+  totalAmount?: number | string | null;
+  currency?: string | null;
+  quantity: number;
+  items: CalendarOccupancyLineDto[];
+}
+
+export interface CalendarOccupancyBlockDto {
+  id: string;
+  variantId: string;
+  productName: string;
+  variantName: string;
+  quantity: number;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  notes?: string | null;
+}
+
+export interface CalendarOccupancyDto {
+  date: string;
+  totalQuantity: number;
+  reservedQuantity: number;
+  maintenanceQuantity: number;
+  damagedQuantity: number;
+  blockedQuantity: number;
+  availableQuantity: number;
+  bookings: CalendarOccupancyBookingDto[];
+  blocks: CalendarOccupancyBlockDto[];
+}
+
 export interface AvailabilityConflictDto {
   date: string;
   reservedQuantity: number;
@@ -502,6 +549,10 @@ export const marketplaceApi = {
       endDate: string;
     }) =>
       apiClient.get<CalendarDayDto[]>("/vendor/calendar", {
+        params: toQueryParams({ ...params }),
+      }),
+    occupancy: (params: { date: string; variant?: string; product?: string; category?: string }) =>
+      apiClient.get<CalendarOccupancyDto>("/vendor/calendar/occupancy", {
         params: toQueryParams({ ...params }),
       }),
   },

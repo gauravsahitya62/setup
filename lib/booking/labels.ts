@@ -82,3 +82,20 @@ export function formatBookingDate(value?: string | null): string {
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
+
+export function formatAvailabilityHint(input: {
+  productName: string;
+  variantName?: string | null;
+  available: number;
+  requested: number;
+  datesKnown?: boolean;
+}): string {
+  const label = input.variantName
+    ? `${input.productName} (${input.variantName})`
+    : input.productName;
+  const when = input.datesKnown ? " for the selected dates" : "";
+  if (input.requested > input.available) {
+    return `${label}: only ${input.available} of ${input.requested} requested units are available${when}.`;
+  }
+  return `${input.available} units available${when}.`;
+}

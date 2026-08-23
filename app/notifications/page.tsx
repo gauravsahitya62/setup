@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
+import { startPageTransition } from "@/components/shared/navigation-progress";
 import { SkeletonLoader } from "@/components/shared/skeleton-loader";
 import { ROUTES } from "@/constants";
 import { notificationsInboxHref } from "@/lib/notifications/labels";
@@ -14,6 +15,7 @@ export default function NotificationsRedirectPage() {
 
   React.useEffect(() => {
     if (isLoading) return;
+    startPageTransition();
     if (!isAuthenticated) {
       router.replace(`${ROUTES.auth.signIn}?next=${ROUTES.notifications}`);
       return;
