@@ -4,7 +4,14 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_NAME: z.string().default("FlowSet"),
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   NEXT_PUBLIC_APP_ENV: z.enum(["development", "staging", "production"]).default("development"),
-  NEXT_PUBLIC_API_BASE_URL: z.string().url().default("http://localhost:8080/api/v1"),
+  NEXT_PUBLIC_API_BASE_URL: z
+    .string()
+    .default("http://localhost:8080/api/v1")
+    .refine(
+      (value) =>
+        value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/"),
+      "NEXT_PUBLIC_API_BASE_URL must be an absolute URL or a same-origin path"
+    ),
   NEXT_PUBLIC_ENABLE_ANALYTICS: z
     .enum(["true", "false"])
     .default("false")

@@ -6,7 +6,7 @@ let apiOrigin = "http://localhost:8080";
 try {
   apiOrigin = new URL(apiBase).origin;
 } catch {
-  apiOrigin = "http://localhost:8080";
+  apiOrigin = "";
 }
 
 const securityHeaders: { key: string; value: string }[] = [
@@ -50,6 +50,18 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "**.flowset.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.onrender.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.up.railway.app",
+      },
+      {
+        protocol: "https",
+        hostname: "**.vercel.app",
       },
       {
         protocol: "https",
